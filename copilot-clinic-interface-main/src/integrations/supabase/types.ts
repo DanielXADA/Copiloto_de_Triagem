@@ -11,6 +11,7 @@ export type Database = {
       pacientes: {
         Row: {
           id: string;
+          clinica_id: string;
           name: string;
           age: number;
           cpf: string;
@@ -28,6 +29,7 @@ export type Database = {
         };
         Insert: {
           id?: string | undefined;
+          clinica_id?: string | undefined;
           name: string;
           age?: number | undefined;
           cpf: string;
@@ -45,6 +47,7 @@ export type Database = {
         };
         Update: {
           id?: string | undefined;
+          clinica_id?: string | undefined;
           name?: string | undefined;
           age?: number | undefined;
           cpf?: string | undefined;
@@ -65,6 +68,7 @@ export type Database = {
       triagens: {
         Row: {
           id: string;
+          clinica_id: string;
           patient: string;
           patient_id: string | null;
           reason: string;
@@ -77,6 +81,7 @@ export type Database = {
         };
         Insert: {
           id?: string | undefined;
+          clinica_id?: string | undefined;
           patient: string;
           patient_id?: string | null | undefined;
           reason: string;
@@ -89,6 +94,7 @@ export type Database = {
         };
         Update: {
           id?: string | undefined;
+          clinica_id?: string | undefined;
           patient?: string | undefined;
           patient_id?: string | null | undefined;
           reason?: string | undefined;
@@ -104,6 +110,7 @@ export type Database = {
       dossies: {
         Row: {
           id: string;
+          clinica_id: string;
           patient: string;
           patient_id: string | null;
           age: number;
@@ -118,6 +125,7 @@ export type Database = {
         };
         Insert: {
           id?: string | undefined;
+          clinica_id?: string | undefined;
           patient: string;
           patient_id?: string | null | undefined;
           age?: number | undefined;
@@ -132,6 +140,7 @@ export type Database = {
         };
         Update: {
           id?: string | undefined;
+          clinica_id?: string | undefined;
           patient?: string | undefined;
           patient_id?: string | null | undefined;
           age?: number | undefined;
@@ -143,6 +152,120 @@ export type Database = {
           symptoms?: Json | null | undefined;
           red_flags?: string[] | null | undefined;
           suggestions?: string[] | null | undefined;
+        };
+        Relationships: [];
+      };
+      clinicas: {
+        Row: {
+          id: string;
+          nome: string;
+          cnpj: string | null;
+          razao_social: string | null;
+          slug: string | null;
+          telefone: string | null;
+          email_contato: string | null;
+          configuracoes_triagem: Json;
+          status: string;
+          plano: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string | undefined;
+          nome: string;
+          cnpj?: string | null | undefined;
+          razao_social?: string | null | undefined;
+          slug?: string | null | undefined;
+          telefone?: string | null | undefined;
+          email_contato?: string | null | undefined;
+          configuracoes_triagem?: Json | undefined;
+          status?: string | undefined;
+          plano?: string | undefined;
+          created_at?: string | undefined;
+          updated_at?: string | undefined;
+        };
+        Update: {
+          id?: string | undefined;
+          nome?: string | undefined;
+          cnpj?: string | null | undefined;
+          razao_social?: string | null | undefined;
+          slug?: string | null | undefined;
+          telefone?: string | null | undefined;
+          email_contato?: string | null | undefined;
+          configuracoes_triagem?: Json | undefined;
+          status?: string | undefined;
+          plano?: string | undefined;
+          created_at?: string | undefined;
+          updated_at?: string | undefined;
+        };
+        Relationships: [];
+      };
+      perfis_usuarios: {
+        Row: {
+          id: string;
+          nome: string;
+          email: string | null;
+          telefone: string | null;
+          crm: string | null;
+          tipo_perfil: "admin_sistema" | "medico" | "recepcao";
+          ativo: boolean;
+          avatar_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          nome: string;
+          email?: string | null | undefined;
+          telefone?: string | null | undefined;
+          crm?: string | null | undefined;
+          tipo_perfil?: "admin_sistema" | "medico" | "recepcao" | undefined;
+          ativo?: boolean | undefined;
+          avatar_url?: string | null | undefined;
+          created_at?: string | undefined;
+          updated_at?: string | undefined;
+        };
+        Update: {
+          id?: string | undefined;
+          nome?: string | undefined;
+          email?: string | null | undefined;
+          telefone?: string | null | undefined;
+          crm?: string | null | undefined;
+          tipo_perfil?: "admin_sistema" | "medico" | "recepcao" | undefined;
+          ativo?: boolean | undefined;
+          avatar_url?: string | null | undefined;
+          created_at?: string | undefined;
+          updated_at?: string | undefined;
+        };
+        Relationships: [];
+      };
+      vinculos_clinica: {
+        Row: {
+          id: string;
+          usuario_id: string;
+          clinica_id: string;
+          papel: "admin_clinica" | "medico" | "recepcao";
+          ativo: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string | undefined;
+          usuario_id: string;
+          clinica_id: string;
+          papel?: "admin_clinica" | "medico" | "recepcao" | undefined;
+          ativo?: boolean | undefined;
+          created_at?: string | undefined;
+          updated_at?: string | undefined;
+        };
+        Update: {
+          id?: string | undefined;
+          usuario_id?: string | undefined;
+          clinica_id?: string | undefined;
+          papel?: "admin_clinica" | "medico" | "recepcao" | undefined;
+          ativo?: boolean | undefined;
+          created_at?: string | undefined;
+          updated_at?: string | undefined;
         };
         Relationships: [];
       };
