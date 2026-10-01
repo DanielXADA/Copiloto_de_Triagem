@@ -81,12 +81,14 @@ export function Button({
   className,
   onClick,
   type = "button",
+  disabled,
 }: {
   children: ReactNode;
-  variant?: "primary" | "ghost" | "outline";
-  className?: string;
-  onClick?: () => void;
-  type?: "button" | "submit";
+  variant?: "primary" | "ghost" | "outline" | undefined;
+  className?: string | undefined;
+  onClick?: (() => void) | (() => Promise<void>) | undefined;
+  type?: "button" | "submit" | undefined;
+  disabled?: boolean | undefined;
 }) {
   const variants = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -97,8 +99,9 @@ export function Button({
     <button
       type={type}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        "inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 disabled:pointer-events-none",
         variants[variant],
         className,
       )}
@@ -134,7 +137,10 @@ export function Avatar({ name, className }: { name: string; className?: string }
 export function Progress({ value, className }: { value: number; className?: string }) {
   return (
     <div className={cn("h-1.5 w-full overflow-hidden rounded-full bg-secondary", className)}>
-      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${value}%` }} />
+      <div
+        className="h-full rounded-full bg-primary transition-all"
+        style={{ width: `${value}%` }}
+      />
     </div>
   );
 }
@@ -163,15 +169,18 @@ export function Input({
   value,
   onChange,
   className,
+  type = "text",
 }: {
-  defaultValue?: string;
-  placeholder?: string;
-  value?: string;
-  onChange?: (v: string) => void;
-  className?: string;
+  defaultValue?: string | undefined;
+  placeholder?: string | undefined;
+  value?: string | undefined;
+  onChange?: ((v: string) => void) | undefined;
+  className?: string | undefined;
+  type?: string | undefined;
 }) {
   return (
     <input
+      type={type}
       defaultValue={defaultValue}
       value={value}
       placeholder={placeholder}

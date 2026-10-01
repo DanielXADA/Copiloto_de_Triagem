@@ -79,9 +79,24 @@ function Relatorios() {
           <div className="h-72 px-3 py-5">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklyTriages} barGap={6}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={12} stroke="var(--color-muted-foreground)" />
-                <YAxis tickLine={false} axisLine={false} fontSize={12} stroke="var(--color-muted-foreground)" />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="var(--color-border)"
+                />
+                <XAxis
+                  dataKey="day"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={12}
+                  stroke="var(--color-muted-foreground)"
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={12}
+                  stroke="var(--color-muted-foreground)"
+                />
                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--color-secondary)" }} />
                 <Bar dataKey="triagens" fill="var(--color-chart-1)" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="dossies" fill="var(--color-chart-3)" radius={[4, 4, 0, 0]} />
@@ -100,7 +115,10 @@ function Relatorios() {
                   <span className="font-semibold">{s.value}%</span>
                 </div>
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${s.value}%` }} />
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${s.value}%` }}
+                  />
                 </div>
               </li>
             ))}
@@ -120,8 +138,19 @@ function Relatorios() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} stroke="var(--color-muted-foreground)" />
-              <YAxis tickLine={false} axisLine={false} fontSize={12} stroke="var(--color-muted-foreground)" />
+              <XAxis
+                dataKey="month"
+                tickLine={false}
+                axisLine={false}
+                fontSize={12}
+                stroke="var(--color-muted-foreground)"
+              />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                fontSize={12}
+                stroke="var(--color-muted-foreground)"
+              />
               <Tooltip contentStyle={tooltipStyle} />
               <Area
                 type="monotone"

@@ -110,7 +110,11 @@ function Agenda() {
                   </div>
                   <Badge
                     tone={
-                      a.status === "Confirmado" ? "green" : a.status === "Aguardando" ? "amber" : "red"
+                      a.status === "Confirmado"
+                        ? "green"
+                        : a.status === "Aguardando"
+                          ? "amber"
+                          : "red"
                     }
                   >
                     {a.status}

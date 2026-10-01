@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Building2, Users, Bell, ShieldCheck, Plus } from "lucide-react";
-import { Card, CardHead, PageHeader, Badge, Button, Avatar, Field, Input, Toggle } from "@/components/kit";
+import {
+  Card,
+  CardHead,
+  PageHeader,
+  Badge,
+  Button,
+  Avatar,
+  Field,
+  Input,
+  Toggle,
+} from "@/components/kit";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/configuracoes")({
@@ -133,7 +143,10 @@ function Configuracoes() {
 
           {tab === "preferencias" && (
             <Card>
-              <CardHead title="Preferências de triagem" subtitle="Como o copiloto atua no dia a dia" />
+              <CardHead
+                title="Preferências de triagem"
+                subtitle="Como o copiloto atua no dia a dia"
+              />
               <ul className="divide-y divide-border">
                 {[
                   {

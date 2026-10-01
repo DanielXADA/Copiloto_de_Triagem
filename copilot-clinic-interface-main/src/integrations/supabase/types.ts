@@ -1,155 +1,280 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
+    PostgrestVersion: "14.5";
+  };
   public: {
     Tables: {
-      [_ in never]: never
-    }
+      pacientes: {
+        Row: {
+          id: string;
+          name: string;
+          age: number;
+          cpf: string;
+          phone: string | null;
+          email: string | null;
+          plan: string | null;
+          last_visit: string | null;
+          status: string;
+          area: string | null;
+          conditions: string[] | null;
+          allergies: string[] | null;
+          medications: string[] | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string | undefined;
+          name: string;
+          age?: number | undefined;
+          cpf: string;
+          phone?: string | null | undefined;
+          email?: string | null | undefined;
+          plan?: string | null | undefined;
+          last_visit?: string | null | undefined;
+          status?: string | undefined;
+          area?: string | null | undefined;
+          conditions?: string[] | null | undefined;
+          allergies?: string[] | null | undefined;
+          medications?: string[] | null | undefined;
+          created_at?: string | null | undefined;
+          updated_at?: string | null | undefined;
+        };
+        Update: {
+          id?: string | undefined;
+          name?: string | undefined;
+          age?: number | undefined;
+          cpf?: string | undefined;
+          phone?: string | null | undefined;
+          email?: string | null | undefined;
+          plan?: string | null | undefined;
+          last_visit?: string | null | undefined;
+          status?: string | undefined;
+          area?: string | null | undefined;
+          conditions?: string[] | null | undefined;
+          allergies?: string[] | null | undefined;
+          medications?: string[] | null | undefined;
+          created_at?: string | null | undefined;
+          updated_at?: string | null | undefined;
+        };
+        Relationships: [];
+      };
+      triagens: {
+        Row: {
+          id: string;
+          patient: string;
+          patient_id: string | null;
+          reason: string;
+          status: string;
+          progress: number;
+          priority: string;
+          started: string | null;
+          channel: string;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string | undefined;
+          patient: string;
+          patient_id?: string | null | undefined;
+          reason: string;
+          status?: string | undefined;
+          progress?: number | undefined;
+          priority?: string | undefined;
+          started?: string | null | undefined;
+          channel?: string | undefined;
+          created_at?: string | null | undefined;
+        };
+        Update: {
+          id?: string | undefined;
+          patient?: string | undefined;
+          patient_id?: string | null | undefined;
+          reason?: string | undefined;
+          status?: string | undefined;
+          progress?: number | undefined;
+          priority?: string | undefined;
+          started?: string | null | undefined;
+          channel?: string | undefined;
+          created_at?: string | null | undefined;
+        };
+        Relationships: [];
+      };
+      dossies: {
+        Row: {
+          id: string;
+          patient: string;
+          patient_id: string | null;
+          age: number;
+          area: string;
+          created_at: string | null;
+          duration: string | null;
+          chief_complaint: string;
+          history: string;
+          symptoms: Json | null;
+          red_flags: string[] | null;
+          suggestions: string[] | null;
+        };
+        Insert: {
+          id?: string | undefined;
+          patient: string;
+          patient_id?: string | null | undefined;
+          age?: number | undefined;
+          area?: string | undefined;
+          created_at?: string | null | undefined;
+          duration?: string | null | undefined;
+          chief_complaint: string;
+          history: string;
+          symptoms?: Json | null | undefined;
+          red_flags?: string[] | null | undefined;
+          suggestions?: string[] | null | undefined;
+        };
+        Update: {
+          id?: string | undefined;
+          patient?: string | undefined;
+          patient_id?: string | null | undefined;
+          age?: number | undefined;
+          area?: string | undefined;
+          created_at?: string | null | undefined;
+          duration?: string | null | undefined;
+          chief_complaint?: string | undefined;
+          history?: string | undefined;
+          symptoms?: Json | null | undefined;
+          red_flags?: string[] | null | undefined;
+          suggestions?: string[] | null | undefined;
+        };
+        Relationships: [];
+      };
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Enums: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
+      [_ in never]: never;
+    };
+  };
+};
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
+      Row: infer R;
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
       }
       ? R
       : never
-    : never
+    : never;
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
+      Insert: infer I;
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
+        Insert: infer I;
       }
       ? I
       : never
-    : never
+    : never;
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
+      Update: infer U;
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
+        Update: infer U;
       }
       ? U
       : never
-    : never
+    : never;
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
   EnumName extends (DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+    : never;
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+    : never;
 
 export const Constants = {
   public: {
     Enums: {},
   },
-} as const
+} as const;
