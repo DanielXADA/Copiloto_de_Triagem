@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as DossiesRouteImport } from './routes/dossies'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PacientesRouteImport } from './routes/pacientes'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as TriagensRouteImport } from './routes/triagens'
@@ -37,6 +38,11 @@ const DossiesRoute = DossiesRouteImport.update({
   path: '/dossies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PacientesRoute = PacientesRouteImport.update({
   id: '/pacientes',
   path: '/pacientes',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/agenda': typeof AgendaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dossies': typeof DossiesRoute
+  '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
   '/relatorios': typeof RelatoriosRoute
   '/triagens': typeof TriagensRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/agenda': typeof AgendaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dossies': typeof DossiesRoute
+  '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
   '/relatorios': typeof RelatoriosRoute
   '/triagens': typeof TriagensRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/agenda': typeof AgendaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dossies': typeof DossiesRoute
+  '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
   '/relatorios': typeof RelatoriosRoute
   '/triagens': typeof TriagensRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/configuracoes'
     | '/dossies'
+    | '/login'
     | '/pacientes'
     | '/relatorios'
     | '/triagens'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/configuracoes'
     | '/dossies'
+    | '/login'
     | '/pacientes'
     | '/relatorios'
     | '/triagens'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/configuracoes'
     | '/dossies'
+    | '/login'
     | '/pacientes'
     | '/relatorios'
     | '/triagens'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   AgendaRoute: typeof AgendaRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DossiesRoute: typeof DossiesRoute
+  LoginRoute: typeof LoginRoute
   PacientesRoute: typeof PacientesRoute
   RelatoriosRoute: typeof RelatoriosRoute
   TriagensRoute: typeof TriagensRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DossiesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pacientes': {
       id: '/pacientes'
       path: '/pacientes'
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgendaRoute: AgendaRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   DossiesRoute: DossiesRoute,
+  LoginRoute: LoginRoute,
   PacientesRoute: PacientesRoute,
   RelatoriosRoute: RelatoriosRoute,
   TriagensRoute: TriagensRoute,

@@ -11,6 +11,8 @@ import {
   Loader2,
   RefreshCw,
   UserPlus,
+  UserCheck,
+  Pencil,
   FilterX,
   AlertCircle,
   Check,
@@ -27,6 +29,7 @@ import {
 import {
   fetchPatients,
   createPatient,
+  updatePatient,
   normalizeCpf,
   formatCpf,
   formatPhone,
@@ -105,8 +108,9 @@ function Pacientes() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selected, setSelected] = useState<Patient | null>(null);
 
-  // Modal de Novo Paciente
+  // Modal de Paciente (Criação e Edição)
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<NewPatientInput>(initialPatientForm);
   const [conditionsText, setConditionsText] = useState("");
@@ -201,8 +205,9 @@ function Pacientes() {
     });
   }, [patientsList, query, statusFilter, planFilter]);
 
-  // Abrir modal e resetar form
-  const handleOpenModal = () => {
+  // Abrir modal para novo paciente
+  const handleOpenCreateModal = () => {
+    setEditingPatientId(null);
     setForm(initialPatientForm);
     setConditionsText("");
     setAllergiesText("");
@@ -210,7 +215,30 @@ function Pacientes() {
     setModalOpen(true);
   };
 
-  // Salvar novo paciente no Supabase
+  // Abrir modal para editar paciente ativo do Drawer
+  const handleOpenEditModal = (patient: Patient) => {
+    setEditingPatientId(patient.id);
+    setForm({
+      name: patient.name,
+      cpf: patient.cpf,
+      age: patient.age,
+      phone: patient.phone || "",
+      email: patient.email || "",
+      plan: patient.plan || "Particular",
+      status: patient.status,
+      area: patient.area || "Clínica Geral",
+      lastVisit: patient.lastVisit || "—",
+      conditions: patient.conditions || [],
+      allergies: patient.allergies || [],
+      medications: patient.medications || [],
+    });
+    setConditionsText(patient.conditions && patient.conditions.length > 0 ? patient.conditions.join(", ") : "");
+    setAllergiesText(patient.allergies && patient.allergies.length > 0 ? patient.allergies.join(", ") : "");
+    setMedicationsText(patient.medications && patient.medications.length > 0 ? patient.medications.join(", ") : "");
+    setModalOpen(true);
+  };
+
+  // Salvar paciente no Supabase (INSERT ou UPDATE)
   const handleSavePatient = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -227,43 +255,79 @@ function Pacientes() {
 
     setSaving(true);
     try {
-      const payload: NewPatientInput = {
-        name: form.name.trim(),
-        cpf: formatCpf(form.cpf),
-        age: Number(form.age) || 0,
-        phone: formatPhone(form.phone),
-        email: form.email?.trim() || "",
-        plan: form.plan?.trim() || "Particular",
-        status: form.status || "Novo",
-        area: form.area?.trim() || "Clínica Geral",
-        lastVisit: "—",
-        conditions: conditionsText
-          .split(",")
-          .map((c) => c.trim())
-          .filter(Boolean),
-        allergies: allergiesText
-          .split(",")
-          .map((a) => a.trim())
-          .filter(Boolean),
-        medications: medicationsText
-          .split(",")
-          .map((m) => m.trim())
-          .filter(Boolean),
-      };
+      const parsedConditions = conditionsText
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
+      const parsedAllergies = allergiesText
+        .split(",")
+        .map((a) => a.trim())
+        .filter(Boolean);
+      const parsedMedications = medicationsText
+        .split(",")
+        .map((m) => m.trim())
+        .filter(Boolean);
 
-      const created = await createPatient(payload);
+      if (editingPatientId) {
+        // Atualizar paciente existente no Supabase (UPDATE)
+        const updatePayload: Partial<Patient> = {
+          name: form.name.trim(),
+          cpf: formatCpf(form.cpf),
+          age: Number(form.age) || 0,
+          phone: formatPhone(form.phone) || "",
+          email: form.email?.trim() || "",
+          plan: form.plan?.trim() || "Particular",
+          status: form.status || "Novo",
+          area: form.area?.trim() || "Clínica Geral",
+          conditions: parsedConditions,
+          allergies: parsedAllergies,
+          medications: parsedMedications,
+        };
 
-      toast.success(`Paciente ${created.name} cadastrado com sucesso!`, {
-        description: `CPF: ${created.cpf} • Salvo no Supabase`,
-      });
+        const updated = await updatePatient(editingPatientId, updatePayload);
 
-      // Atualiza a lista local e seleciona o novo paciente
-      setPatientsList((prev) => [created, ...prev]);
-      setSelected(created);
-      setModalOpen(false);
+        toast.success(`Paciente ${updated.name} atualizado com sucesso!`, {
+          description: `CPF: ${updated.cpf} • Sincronizado no Supabase`,
+        });
+
+        // Atualiza a lista em memória e o paciente ativo no drawer
+        setPatientsList((prev) =>
+          prev.map((p) => (p.id === updated.id ? updated : p))
+        );
+        setSelected(updated);
+        setModalOpen(false);
+        setEditingPatientId(null);
+      } else {
+        // Criar novo paciente no Supabase (INSERT)
+        const payload: NewPatientInput = {
+          name: form.name.trim(),
+          cpf: formatCpf(form.cpf),
+          age: Number(form.age) || 0,
+          phone: formatPhone(form.phone),
+          email: form.email?.trim() || "",
+          plan: form.plan?.trim() || "Particular",
+          status: form.status || "Novo",
+          area: form.area?.trim() || "Clínica Geral",
+          lastVisit: "—",
+          conditions: parsedConditions,
+          allergies: parsedAllergies,
+          medications: parsedMedications,
+        };
+
+        const created = await createPatient(payload);
+
+        toast.success(`Paciente ${created.name} cadastrado com sucesso!`, {
+          description: `CPF: ${created.cpf} • Salvo no Supabase`,
+        });
+
+        // Atualiza a lista local e seleciona o novo paciente
+        setPatientsList((prev) => [created, ...prev]);
+        setSelected(created);
+        setModalOpen(false);
+      }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error("[Novo Paciente] Erro ao salvar:", errorMsg);
+      console.error(editingPatientId ? "[Editar Paciente] Erro ao atualizar:" : "[Novo Paciente] Erro ao salvar:", errorMsg);
       const isTableMissing =
         errorMsg.includes("PGRST205") || errorMsg.includes("Could not find the table");
 
@@ -273,9 +337,14 @@ function Pacientes() {
           duration: 7000,
         });
       } else {
-        toast.error("Erro ao salvar paciente no Supabase", {
-          description: errorMsg || "Verifique a conexão e tente novamente.",
-        });
+        toast.error(
+          editingPatientId
+            ? "Erro ao atualizar paciente no Supabase"
+            : "Erro ao salvar paciente no Supabase",
+          {
+            description: errorMsg || "Verifique a conexão e tente novamente.",
+          },
+        );
       }
     } finally {
       setSaving(false);
@@ -307,7 +376,7 @@ function Pacientes() {
                 </span>
               )}
             </Button>
-            <Button onClick={handleOpenModal}>
+            <Button onClick={handleOpenCreateModal}>
               <Plus className="size-4" /> Novo paciente
             </Button>
           </div>
@@ -585,7 +654,7 @@ function Pacientes() {
                             Limpar filtros e busca
                           </Button>
                         ) : (
-                          <Button onClick={handleOpenModal} className="text-xs">
+                          <Button onClick={handleOpenCreateModal} className="text-xs">
                             <Plus className="size-3.5" /> Cadastrar paciente
                           </Button>
                         )}
@@ -683,10 +752,10 @@ function Pacientes() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    toast.info(`Editando paciente ${selected.name}`);
-                  }}
+                  onClick={() => handleOpenEditModal(selected)}
+                  className="gap-1.5"
                 >
+                  <Pencil className="size-3.5" />
                   Editar
                 </Button>
               </div>
@@ -695,19 +764,37 @@ function Pacientes() {
         )}
       </div>
 
-      {/* Modal Funcional: Novo Paciente (Conectado ao Supabase) */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      {/* Modal Funcional: Criar ou Editar Paciente (Conectado ao Supabase) */}
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) setEditingPatientId(null);
+        }}
+      >
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center gap-2.5 text-primary">
               <div className="rounded-lg bg-primary/10 p-2 text-primary">
-                <UserPlus className="size-5" />
+                {editingPatientId ? <UserCheck className="size-5" /> : <UserPlus className="size-5" />}
               </div>
-              <DialogTitle className="text-lg font-semibold">Novo Paciente</DialogTitle>
+              <DialogTitle className="text-lg font-semibold">
+                {editingPatientId ? "Editar Paciente" : "Novo Paciente"}
+              </DialogTitle>
             </div>
             <DialogDescription>
-              Preencha os dados clínicos e cadastrais. As informações serão salvas diretamente na
-              tabela <code className="text-xs font-mono font-semibold">pacientes</code> do Supabase.
+              {editingPatientId ? (
+                <>
+                  Atualize as informações cadastrais e clínicas de{" "}
+                  <strong className="text-foreground">{form.name || "paciente"}</strong>. As alterações
+                  serão salvas na tabela <code className="text-xs font-mono font-semibold">pacientes</code> do Supabase.
+                </>
+              ) : (
+                <>
+                  Preencha os dados clínicos e cadastrais. As informações serão salvas diretamente na
+                  tabela <code className="text-xs font-mono font-semibold">pacientes</code> do Supabase.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -883,7 +970,10 @@ function Pacientes() {
               <Button
                 variant="outline"
                 type="button"
-                onClick={() => setModalOpen(false)}
+                onClick={() => {
+                  setModalOpen(false);
+                  setEditingPatientId(null);
+                }}
                 disabled={saving}
               >
                 Cancelar
@@ -892,12 +982,12 @@ function Pacientes() {
                 {saving ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    Salvando no Supabase...
+                    {editingPatientId ? "Atualizando no Supabase..." : "Salvando no Supabase..."}
                   </>
                 ) : (
                   <>
                     <Check className="size-4" />
-                    Salvar paciente
+                    {editingPatientId ? "Salvar alterações" : "Salvar paciente"}
                   </>
                 )}
               </Button>

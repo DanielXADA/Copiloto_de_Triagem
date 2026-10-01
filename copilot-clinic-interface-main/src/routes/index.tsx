@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Card, CardHead, Avatar } from "@/components/kit";
 import { kpis, appointments, recentPatients, triageSummary, doctor } from "@/lib/mock-data";
+import { useAuth } from "@/hooks/use-auth";
 import doctorHero from "@/assets/doctor-hero.jpg";
 
 export const Route = createFileRoute("/")({
@@ -91,6 +92,8 @@ function Donut() {
 }
 
 function Inicio() {
+  const { profile } = useAuth();
+
   return (
     <div className="space-y-5">
       <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
@@ -103,7 +106,7 @@ function Inicio() {
             className="absolute inset-y-0 right-0 hidden h-full w-[46%] object-cover object-top lg:block"
           />
           <div className="relative z-10 max-w-2xl px-8 py-10">
-            <p className="text-[13px] text-muted-foreground">Olá, {doctor.name}</p>
+            <p className="text-[13px] text-muted-foreground">Olá, {profile.name}</p>
             <h1 className="mt-3 text-[38px] leading-[1.1] font-semibold tracking-tight">
               Seu dia mais produtivo
               <br />

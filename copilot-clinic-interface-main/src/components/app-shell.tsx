@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   Home,
   Users,
@@ -11,10 +11,21 @@ import {
   Bell,
   ChevronDown,
   Activity,
+  LogOut,
+  Loader2,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { doctor } from "@/lib/mock-data";
+import { useAuth } from "@/hooks/use-auth";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 const nav = [
   { to: "/", label: "Início", icon: Home },
@@ -28,9 +39,31 @@ const nav = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const { profile, signOut } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      toast.success("Sessão encerrada com sucesso!", {
+        description: "Você desconectou da sua conta no Copiloto Med.",
+      });
+      navigate({ to: "/login" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error("Erro ao encerrar sessão:", {
+        description: msg,
+      });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen w-full bg-background">
+      {/* Sidebar de navegação */}
       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface lg:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary">
@@ -79,6 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen w-full flex-col lg:pl-60">
+        {/* Header principal com busca e perfil dinâmico */}
         <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-surface px-5">
           <div className="relative w-full max-w-lg">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -92,20 +126,102 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            <button className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+            <button
+              type="button"
+              className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
+              aria-label="Notificações"
+            >
               <Bell className="size-4.5" />
               <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-primary" />
             </button>
-            <div className="flex items-center gap-2.5 rounded-lg border border-border px-2.5 py-1.5">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary-soft text-[12px] font-semibold text-accent-foreground">
-                {doctor.initials}
-              </div>
-              <div className="hidden leading-tight sm:block">
-                <p className="text-[13px] font-semibold">{doctor.name}</p>
-                <p className="text-[11px] text-muted-foreground">{doctor.specialty}</p>
-              </div>
-              <ChevronDown className="size-4 text-muted-foreground" />
-            </div>
+
+            {/* Menu Dropdown Dinâmico do Perfil Autenticado */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-2.5 rounded-lg border border-border px-2.5 py-1.5 text-left transition-colors hover:bg-secondary/60 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  aria-label="Menu do usuário"
+                >
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-primary-soft text-[12px] font-semibold text-accent-foreground select-none">
+                    {profile.initials}
+                  </div>
+                  <div className="hidden leading-tight sm:block">
+                    <p className="text-[13px] font-semibold text-foreground truncate max-w-[140px]">
+                      {profile.name}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate max-w-[140px]">
+                      {profile.specialty}
+                    </p>
+                  </div>
+                  <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-64 p-1.5">
+                <DropdownMenuLabel className="font-normal px-2.5 py-2">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {profile.name}
+                      </p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-medium text-success">
+                        <span className="size-1.5 rounded-full bg-success" />
+                        Conectado
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {profile.email || "Médico Credenciado"}
+                    </p>
+                    <p className="text-[11px] text-primary font-medium mt-0.5">
+                      {profile.specialty}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem asChild>
+                  <Link
+                    to="/configuracoes"
+                    className="flex w-full items-center gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer"
+                  >
+                    <Settings className="size-4 text-muted-foreground" />
+                    <span>Configurações da clínica</span>
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild>
+                  <Link
+                    to="/pacientes"
+                    className="flex w-full items-center gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer"
+                  >
+                    <Users className="size-4 text-muted-foreground" />
+                    <span>Gerenciar pacientes</span>
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-medium text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                >
+                  {isLoggingOut ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      <span>Encerrando sessão...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="size-4" />
+                      <span>Sair (Logout)</span>
+                    </>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
