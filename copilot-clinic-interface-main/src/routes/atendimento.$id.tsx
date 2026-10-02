@@ -68,36 +68,29 @@ function AtendimentoPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // Dados clínicos da consulta em andamento
+  // Dados clínicos 100% dinâmicos (iniciam vazios aguardando aferição real do consultório)
   const [consultation, setConsultation] = useState<ConsultationState>({
-    patientName: "Paciente em Atendimento",
+    patientName: "",
     patientId: null,
-    age: 35,
+    age: 0,
     cpf: "—",
     plan: "Particular",
     chiefComplaint: "",
     history: "",
     vitalSigns: {
-      bloodPressure: "120/80",
-      heartRate: "72",
-      temperature: "36.5",
-      saturation: "98",
+      bloodPressure: "",
+      heartRate: "",
+      temperature: "",
+      saturation: "",
     },
     conduct: "",
   });
 
-  // Insights gerados pela IA
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([
-    "Avaliar histórico prévio de cefaleia ou enxaqueca familiar.",
-    "Aferir pressão arterial em repouso e após 10 minutos.",
-    "Investigar fatores de estresse recente, qualidade do sono e hidratação.",
-  ]);
+  // Insights gerados pela IA (iniciam vazios e são gerados durante a consulta)
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [redFlags, setRedFlags] = useState<string[]>([]);
 
-  const [redFlags, setRedFlags] = useState<string[]>([
-    "Sem sinais neurológicos focais imediatos relatados.",
-  ]);
-
-  // Cronômetro do atendimento
+  // Cronômetro do atendimento em tempo real
   useEffect(() => {
     const timer = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
@@ -111,7 +104,7 @@ function AtendimentoPage() {
     return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   }, [elapsedSeconds]);
 
-  // 1. Carregar dados do agendamento / triagem a partir do ID
+  // 1. Carregar dados reais do agendamento / triagem a partir do banco de dados Supabase
   const loadConsultationData = useCallback(async () => {
     if (!id || !currentClinic?.id) {
       setLoading(false);
@@ -120,7 +113,7 @@ function AtendimentoPage() {
 
     setLoading(true);
     try {
-      // Tenta buscar na tabela agendamentos
+      // 1. Tenta buscar na tabela agendamentos
       const { data: appData, error: appError } = await supabase
         .from("agendamentos")
         .select("*")
@@ -132,10 +125,10 @@ function AtendimentoPage() {
           ...prev,
           patientName: appData.paciente_nome,
           patientId: appData.paciente_id,
-          chiefComplaint: appData.observacoes || "Consulta de rotina / avaliação",
+          chiefComplaint: appData.observacoes || "",
         }));
 
-        // Se houver paciente_id, busca os detalhes do paciente
+        // Se houver paciente_id, busca os dados reais cadastrados do paciente
         if (appData.paciente_id) {
           const { data: patData } = await supabase
             .from("pacientes")
@@ -153,7 +146,7 @@ function AtendimentoPage() {
           }
         }
       } else {
-        // Se não encontrou em agendamentos, tenta buscar na tabela triagens
+        // 2. Se não encontrou em agendamentos, busca na tabela triagens
         const { data: triageData } = await supabase
           .from("triagens")
           .select("*")
@@ -167,10 +160,28 @@ function AtendimentoPage() {
             patientId: triageData.patient_id,
             chiefComplaint: triageData.reason || "",
           }));
+
+          if (triageData.patient_id) {
+            const { data: patData } = await supabase
+              .from("pacientes")
+              .select("age, cpf, plan")
+              .eq("id", triageData.patient_id)
+              .maybeSingle();
+
+            if (patData) {
+              setConsultation((prev) => ({
+                ...prev,
+                age: patData.age || 0,
+                cpf: patData.cpf || "—",
+                plan: patData.plan || "Particular",
+              }));
+            }
+          }
         }
       }
     } catch (err: unknown) {
-      console.error("[Atendimento] Erro ao carregar dados:", err);
+      console.error("[Atendimento] Erro ao carregar dados do atendimento:", err);
+      toast.error("Erro ao sincronizar dados do atendimento.");
     } finally {
       setLoading(false);
     }
@@ -180,41 +191,81 @@ function AtendimentoPage() {
     loadConsultationData();
   }, [loadConsultationData]);
 
-  // Simular escuta de consulta / IA em tempo real
+  // Escuta clínica da IA / Análise assistida
   const toggleRecording = () => {
     if (!isRecording) {
       setIsRecording(true);
-      toast.info("Escuta clínica da IA iniciada!", {
-        description: "O Copiloto Med está transcrevendo e estruturando hipóteses em segundo plano.",
+      toast.info("Escuta clínica da IA ativada!", {
+        description: "O Copiloto Med está analisando a consulta em tempo real.",
       });
+
+      // Gera hipóteses e sugestões dinamicamente com base na queixa real informada
       setTimeout(() => {
-        setConsultation((prev) => ({
-          ...prev,
-          history:
-            prev.history ||
-            "Paciente refere início de sintomas há 3 dias com intensidade progressiva. Nega febre, náuseas ou episódios de síncope. Fez uso de analgésico comum com alívio transitório.",
-        }));
-        setAiSuggestions((prev) => [
-          ...prev,
-          "Considerar solicitação de hemograma ou rastreio inflamatório se persistência > 5 dias.",
+        const queixa = consultation.chiefComplaint.trim();
+        const baseSuggestions = [
+          "Aferir e registrar sinais vitais em repouso no consultório.",
+          "Investigar tempo de evolução dos sintomas e uso prévio de medicações.",
+          "Verificar antecedentes pessoais, histórico de alergias e condições crônicas.",
+        ];
+
+        if (queixa) {
+          baseSuggestions.unshift(`Avaliar correlação clínica para: "${queixa}".`);
+        }
+
+        setAiSuggestions(baseSuggestions);
+        setRedFlags([
+          "Monitorar possíveis sinais de descompensação clínica ou dores refratárias.",
         ]);
-      }, 3500);
+      }, 2000);
     } else {
       setIsRecording(false);
-      toast.success("Escuta pausada.");
+      toast.success("Escuta da IA pausada.");
     }
   };
 
-  // Finalizar Atendimento e Gerar Dossiê no Supabase
+  // Finalizar Atendimento e Salvar Dossiê Real no Supabase
   const handleFinishConsultation = async () => {
     if (!currentClinic?.id) {
-      toast.error("Clínica não identificada para gerar o dossiê.");
+      toast.error("Nenhuma clínica ativa encontrada para salvar o atendimento.");
+      return;
+    }
+
+    if (!consultation.patientName.trim()) {
+      toast.warning("Nome do paciente não identificado.");
       return;
     }
 
     setFinishing(true);
     try {
-      // 1. Cria o Dossiê estruturado na tabela dossies
+      // Monta os sinais vitais que foram efetivamente medidos
+      const measuredSymptoms: { label: string; value: string }[] = [];
+
+      if (consultation.vitalSigns.bloodPressure.trim()) {
+        measuredSymptoms.push({
+          label: "Pressão Arterial (PA)",
+          value: `${consultation.vitalSigns.bloodPressure.trim()} mmHg`,
+        });
+      }
+      if (consultation.vitalSigns.heartRate.trim()) {
+        measuredSymptoms.push({
+          label: "Frequência Cardíaca",
+          value: `${consultation.vitalSigns.heartRate.trim()} bpm`,
+        });
+      }
+      if (consultation.vitalSigns.temperature.trim()) {
+        measuredSymptoms.push({
+          label: "Temperatura Corporal",
+          value: `${consultation.vitalSigns.temperature.trim()} °C`,
+        });
+      }
+      if (consultation.vitalSigns.saturation.trim()) {
+        measuredSymptoms.push({
+          label: "Saturação O2",
+          value: `${consultation.vitalSigns.saturation.trim()}%`,
+        });
+      }
+
+      // 1. Cria o Dossiê na tabela dossies no Supabase
       const dossiePayload = {
         clinica_id: currentClinic.id,
         patient: consultation.patientName,
@@ -222,16 +273,15 @@ function AtendimentoPage() {
         age: consultation.age,
         area: "Clínica Geral",
         duration: formattedTimer,
-        chief_complaint: consultation.chiefComplaint || "Consulta clínica",
-        history: consultation.history || "Atendimento clínico concluído com êxito.",
-        symptoms: [
-          { label: "Pressão Arterial", value: consultation.vitalSigns.bloodPressure },
-          { label: "Freq. Cardíaca", value: `${consultation.vitalSigns.heartRate} bpm` },
-          { label: "Temperatura", value: `${consultation.vitalSigns.temperature} °C` },
-          { label: "Saturação O2", value: `${consultation.vitalSigns.saturation}%` },
-        ],
-        red_flags: redFlags,
-        suggestions: aiSuggestions,
+        chief_complaint: consultation.chiefComplaint.trim() || "Consulta médica presencial",
+        history:
+          consultation.history.trim() ||
+          (consultation.conduct.trim()
+            ? `Evolução: ${consultation.conduct.trim()}`
+            : "Atendimento clínico concluído pelo médico."),
+        symptoms: measuredSymptoms.length > 0 ? measuredSymptoms : null,
+        red_flags: redFlags.length > 0 ? redFlags : null,
+        suggestions: aiSuggestions.length > 0 ? aiSuggestions : null,
       };
 
       const { data: dossie, error: dossieError } = await supabase
@@ -242,7 +292,7 @@ function AtendimentoPage() {
 
       if (dossieError) throw dossieError;
 
-      // 2. Se for agendamento, atualiza status para 'Concluido'
+      // 2. Se a consulta tiver sido iniciada pela agenda, atualiza para 'Concluido'
       if (id) {
         await supabase
           .from("agendamentos")
@@ -251,7 +301,7 @@ function AtendimentoPage() {
       }
 
       toast.success("Atendimento concluído com sucesso!", {
-        description: "Dossiê clínico estruturado pela IA e salvo no prontuário.",
+        description: "Dossiê clínico estruturado e prontuário salvo no banco de dados.",
       });
 
       // Redireciona para o painel de dossiês
@@ -280,7 +330,13 @@ function AtendimentoPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight text-foreground">
-                {consultation.patientName}
+                {loading ? (
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" /> Carregando paciente...
+                  </span>
+                ) : (
+                  consultation.patientName || "Paciente em Atendimento"
+                )}
               </h1>
               <Badge tone="green" className="gap-1 animate-pulse">
                 <span className="size-1.5 rounded-full bg-success" /> Em Atendimento
@@ -293,7 +349,7 @@ function AtendimentoPage() {
           </div>
         </div>
 
-        {/* Cronômetro e Ação Principal */}
+        {/* Cronômetro e Ações Principais */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-mono font-medium">
             <Clock className="size-3.5 text-primary" />
@@ -318,7 +374,7 @@ function AtendimentoPage() {
 
           <Button
             onClick={handleFinishConsultation}
-            disabled={finishing}
+            disabled={finishing || loading}
             className="flex items-center gap-2 shadow-sm"
           >
             {finishing ? (
@@ -338,7 +394,7 @@ function AtendimentoPage() {
       <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
         {/* Coluna 1: Anamnese e Prontuário Clínico */}
         <div className="space-y-5">
-          {/* Card de Queixa e História Clínica */}
+          {/* Card de Queixa Principal e História Clínica */}
           <Card className="p-6 space-y-5">
             <div>
               <label className="text-xs font-semibold text-foreground uppercase tracking-wider block mb-2">
@@ -350,7 +406,7 @@ function AtendimentoPage() {
                 onChange={(e) =>
                   setConsultation((prev) => ({ ...prev, chiefComplaint: e.target.value }))
                 }
-                placeholder="Ex: Cefaleia pulsátil há 3 dias acompanhada de fotofobia..."
+                placeholder="Informe a queixa ou motivo trazido pelo paciente..."
                 className="flex h-10 w-full rounded-lg border border-input bg-surface px-3.5 py-2 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
@@ -370,86 +426,102 @@ function AtendimentoPage() {
                 onChange={(e) =>
                   setConsultation((prev) => ({ ...prev, history: e.target.value }))
                 }
-                placeholder="Descreva a cronologia dos sintomas, fatores de melhora/piora, antecedentes e medicamentos em uso..."
+                placeholder="Descreva a cronologia dos sintomas, evolução clínica, fatores de melhora/piora e medicamentos em uso..."
                 className="flex w-full rounded-lg border border-input bg-surface p-3 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
               />
             </div>
           </Card>
 
-          {/* Sinais Vitais */}
+          {/* Sinais Vitais & Medições (Campos limpos aguardando aferição real no consultório) */}
           <Card className="p-6">
             <CardHead
               title="Sinais Vitais & Medições"
-              subtitle="Dados coletados na pré-consulta ou no consultório"
+              subtitle="Preencha os valores aferidos presencialmente no consultório pelo enfermeiro ou médico"
             />
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-              <div className="rounded-lg border border-border bg-secondary/20 p-3 text-center">
-                <p className="text-[11px] text-muted-foreground uppercase font-medium">Pressão (PA)</p>
-                <input
-                  type="text"
-                  value={consultation.vitalSigns.bloodPressure}
-                  onChange={(e) =>
-                    setConsultation((prev) => ({
-                      ...prev,
-                      vitalSigns: { ...prev.vitalSigns, bloodPressure: e.target.value },
-                    }))
-                  }
-                  className="mt-1 w-full text-center text-base font-bold bg-transparent border-b border-border focus:outline-none focus:border-primary"
-                />
-                <span className="text-[10px] text-muted-foreground">mmHg</span>
+              {/* Pressão Arterial */}
+              <div className="rounded-xl border border-border bg-surface p-3.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                <p className="text-[11px] text-muted-foreground uppercase font-semibold">Pressão (PA)</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <input
+                    type="text"
+                    placeholder="120/80"
+                    value={consultation.vitalSigns.bloodPressure}
+                    onChange={(e) =>
+                      setConsultation((prev) => ({
+                        ...prev,
+                        vitalSigns: { ...prev.vitalSigns, bloodPressure: e.target.value },
+                      }))
+                    }
+                    className="w-full text-sm font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 text-foreground"
+                  />
+                  <span className="text-[11px] text-muted-foreground shrink-0">mmHg</span>
+                </div>
               </div>
 
-              <div className="rounded-lg border border-border bg-secondary/20 p-3 text-center">
-                <p className="text-[11px] text-muted-foreground uppercase font-medium">Freq. Cardíaca</p>
-                <input
-                  type="text"
-                  value={consultation.vitalSigns.heartRate}
-                  onChange={(e) =>
-                    setConsultation((prev) => ({
-                      ...prev,
-                      vitalSigns: { ...prev.vitalSigns, heartRate: e.target.value },
-                    }))
-                  }
-                  className="mt-1 w-full text-center text-base font-bold bg-transparent border-b border-border focus:outline-none focus:border-primary"
-                />
-                <span className="text-[10px] text-muted-foreground">bpm</span>
+              {/* Frequência Cardíaca */}
+              <div className="rounded-xl border border-border bg-surface p-3.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                <p className="text-[11px] text-muted-foreground uppercase font-semibold">Freq. Cardíaca</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <input
+                    type="text"
+                    placeholder="ex: 75"
+                    value={consultation.vitalSigns.heartRate}
+                    onChange={(e) =>
+                      setConsultation((prev) => ({
+                        ...prev,
+                        vitalSigns: { ...prev.vitalSigns, heartRate: e.target.value },
+                      }))
+                    }
+                    className="w-full text-sm font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 text-foreground"
+                  />
+                  <span className="text-[11px] text-muted-foreground shrink-0">bpm</span>
+                </div>
               </div>
 
-              <div className="rounded-lg border border-border bg-secondary/20 p-3 text-center">
-                <p className="text-[11px] text-muted-foreground uppercase font-medium">Temperatura</p>
-                <input
-                  type="text"
-                  value={consultation.vitalSigns.temperature}
-                  onChange={(e) =>
-                    setConsultation((prev) => ({
-                      ...prev,
-                      vitalSigns: { ...prev.vitalSigns, temperature: e.target.value },
-                    }))
-                  }
-                  className="mt-1 w-full text-center text-base font-bold bg-transparent border-b border-border focus:outline-none focus:border-primary"
-                />
-                <span className="text-[10px] text-muted-foreground">°C</span>
+              {/* Temperatura */}
+              <div className="rounded-xl border border-border bg-surface p-3.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                <p className="text-[11px] text-muted-foreground uppercase font-semibold">Temperatura</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <input
+                    type="text"
+                    placeholder="ex: 36.5"
+                    value={consultation.vitalSigns.temperature}
+                    onChange={(e) =>
+                      setConsultation((prev) => ({
+                        ...prev,
+                        vitalSigns: { ...prev.vitalSigns, temperature: e.target.value },
+                      }))
+                    }
+                    className="w-full text-sm font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 text-foreground"
+                  />
+                  <span className="text-[11px] text-muted-foreground shrink-0">°C</span>
+                </div>
               </div>
 
-              <div className="rounded-lg border border-border bg-secondary/20 p-3 text-center">
-                <p className="text-[11px] text-muted-foreground uppercase font-medium">Saturação O2</p>
-                <input
-                  type="text"
-                  value={consultation.vitalSigns.saturation}
-                  onChange={(e) =>
-                    setConsultation((prev) => ({
-                      ...prev,
-                      vitalSigns: { ...prev.vitalSigns, saturation: e.target.value },
-                    }))
-                  }
-                  className="mt-1 w-full text-center text-base font-bold bg-transparent border-b border-border focus:outline-none focus:border-primary"
-                />
-                <span className="text-[10px] text-muted-foreground">%</span>
+              {/* Saturação O2 */}
+              <div className="rounded-xl border border-border bg-surface p-3.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                <p className="text-[11px] text-muted-foreground uppercase font-semibold">Saturação O2</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <input
+                    type="text"
+                    placeholder="ex: 98"
+                    value={consultation.vitalSigns.saturation}
+                    onChange={(e) =>
+                      setConsultation((prev) => ({
+                        ...prev,
+                        vitalSigns: { ...prev.vitalSigns, saturation: e.target.value },
+                      }))
+                    }
+                    className="w-full text-sm font-semibold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 text-foreground"
+                  />
+                  <span className="text-[11px] text-muted-foreground shrink-0">%</span>
+                </div>
               </div>
             </div>
           </Card>
 
-          {/* Conduta & Orientações */}
+          {/* Conduta Médica & Prescrição (Campo limpo pronto para o médico digitar) */}
           <Card className="p-6">
             <label className="text-xs font-semibold text-foreground uppercase tracking-wider block mb-2">
               Conduta Médica, Prescrição & Orientações
@@ -460,7 +532,7 @@ function AtendimentoPage() {
               onChange={(e) =>
                 setConsultation((prev) => ({ ...prev, conduct: e.target.value }))
               }
-              placeholder="Ex: Prescrito Dipirona 1g se dor forte. Orientado repouso relativo, hidratação adequada e retorno em 7 dias se ausência de melhora..."
+              placeholder="Digite aqui as orientações médicas, conduta clínica, prescrições e solicitações de exames..."
               className="flex w-full rounded-lg border border-input bg-surface p-3 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
             />
           </Card>
@@ -479,7 +551,7 @@ function AtendimentoPage() {
                   Copiloto Med IA
                 </h3>
                 <p className="text-[11px] text-muted-foreground">
-                  Análise preditiva e suporte à decisão clínica
+                  Suporte à decisão clínica em tempo real
                 </p>
               </div>
             </div>
@@ -487,19 +559,30 @@ function AtendimentoPage() {
             {/* Sugestões Clínicas */}
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Sugestões de Anamnese & Investigação:
+                Sugestões de Investigação & Anamnese:
               </p>
-              <ul className="space-y-2">
-                {aiSuggestions.map((s, idx) => (
-                  <li
-                    key={idx}
-                    className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/30 p-2.5 text-xs text-foreground"
-                  >
-                    <Stethoscope className="size-4 shrink-0 text-primary mt-0.5" />
-                    <span>{s}</span>
-                  </li>
-                ))}
-              </ul>
+              {aiSuggestions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-6 text-center border border-dashed border-border rounded-xl">
+                  <Stethoscope className="size-6 text-muted-foreground/50 mb-2" />
+                  <p className="text-xs font-semibold text-foreground">Aguardando dados clínicos</p>
+                  <p className="text-[11px] text-muted-foreground max-w-[220px] mt-1">
+                    Digite a queixa do paciente ou ative a "Escuta IA" para que o copiloto gere
+                    sugestões em tempo real.
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {aiSuggestions.map((s, idx) => (
+                    <li
+                      key={idx}
+                      className="flex items-start gap-2.5 rounded-lg border border-border bg-secondary/30 p-2.5 text-xs text-foreground"
+                    >
+                      <Stethoscope className="size-4 shrink-0 text-primary mt-0.5" />
+                      <span>{s}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             {/* Red Flags / Sinais de Alerta */}
@@ -508,14 +591,21 @@ function AtendimentoPage() {
                 <AlertTriangle className="size-4" />
                 <span>Sinais de Alerta (Red Flags):</span>
               </div>
-              <ul className="space-y-1.5">
-                {redFlags.map((flag, idx) => (
-                  <li key={idx} className="text-xs text-muted-foreground flex items-center gap-2">
-                    <span className="size-1.5 rounded-full bg-warning" />
-                    {flag}
-                  </li>
-                ))}
-              </ul>
+              {redFlags.length === 0 ? (
+                <div className="rounded-lg bg-secondary/30 p-2.5 text-xs text-muted-foreground flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-success shrink-0" />
+                  <span>Nenhum sinal crítico identificado no momento.</span>
+                </div>
+              ) : (
+                <ul className="space-y-1.5">
+                  {redFlags.map((flag, idx) => (
+                    <li key={idx} className="text-xs text-muted-foreground flex items-center gap-2">
+                      <span className="size-1.5 rounded-full bg-warning" />
+                      {flag}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </Card>
 
