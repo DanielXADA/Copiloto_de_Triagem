@@ -18,6 +18,7 @@ import {
   Check,
 } from "lucide-react";
 import { Card, PageHeader, Badge, Button, Avatar, Input } from "@/components/kit";
+import { MaskedInput } from "@/components/ui/masked-input";
 import {
   Dialog,
   DialogContent,
@@ -818,11 +819,12 @@ function Pacientes() {
                 <label className="text-[13px] font-medium text-foreground block mb-1">
                   CPF <span className="text-destructive">*</span>
                 </label>
-                <Input
+                <MaskedInput
+                  mask="cpf"
                   value={form.cpf}
-                  onChange={(val) => setForm((prev) => ({ ...prev, cpf: formatCpf(val) }))}
+                  onValueChange={(val) => setForm((prev) => ({ ...prev, cpf: val }))}
                   placeholder="000.000.000-00"
-                  className="w-full font-mono"
+                  className="w-full font-mono bg-surface h-9"
                 />
                 <span className="text-[11px] text-muted-foreground mt-0.5 block">
                   Digite com ou sem pontuação
@@ -848,11 +850,12 @@ function Pacientes() {
                 <label className="text-[13px] font-medium text-foreground block mb-1">
                   Telefone / WhatsApp
                 </label>
-                <Input
+                <MaskedInput
+                  mask="phone"
                   value={form.phone}
-                  onChange={(val) => setForm((prev) => ({ ...prev, phone: formatPhone(val) }))}
+                  onValueChange={(val) => setForm((prev) => ({ ...prev, phone: val }))}
                   placeholder="(11) 98888-7777"
-                  className="w-full"
+                  className="w-full bg-surface h-9"
                 />
               </div>
 

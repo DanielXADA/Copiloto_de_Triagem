@@ -15,6 +15,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenant } from "@/contexts/tenant-context";
+import { CopilotoLogo } from "@/components/brand/copiloto-logo";
 import { toast } from "sonner";
 import { Card, Button, Field } from "@/components/kit";
 
@@ -162,18 +163,8 @@ function SetupPage() {
       <div className="pointer-events-none absolute -bottom-40 right-10 size-[500px] rounded-full bg-primary-soft/30 blur-3xl" />
 
       {/* Header com Logotipo do Copiloto Med */}
-      <div className="relative z-10 flex items-center gap-2.5 mb-8">
-        <div className="flex size-11 items-center justify-center rounded-xl bg-primary shadow-md">
-          <Activity className="size-6 text-primary-foreground" strokeWidth={2.4} />
-        </div>
-        <div>
-          <p className="text-xl font-bold tracking-tight text-foreground">
-            Copiloto <span className="text-primary">Med</span>
-          </p>
-          <p className="text-[11px] tracking-wide text-muted-foreground uppercase font-medium">
-            Setup Administrativo Multi-Tenant
-          </p>
-        </div>
+      <div className="relative z-10 mb-8">
+        <CopilotoLogo size="lg" badge="Setup" />
       </div>
 
       {/* Card Principal de Onboarding */}

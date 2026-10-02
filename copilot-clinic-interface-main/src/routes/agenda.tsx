@@ -351,10 +351,13 @@ function Agenda() {
     });
   };
 
-  // Iniciar Triagem a partir da agenda
+  // Iniciar Atendimento Clínico a partir da agenda
   const handleStartTriage = (app: Agendamento) => {
-    toast.info(`Iniciando triagem para ${app.paciente_nome}...`);
-    navigate({ to: "/triagens" });
+    toast.info(`Iniciando atendimento para ${app.paciente_nome}...`);
+    navigate({
+      to: "/atendimento/$id",
+      params: { id: app.id },
+    });
   };
 
   // Excluir agendamento

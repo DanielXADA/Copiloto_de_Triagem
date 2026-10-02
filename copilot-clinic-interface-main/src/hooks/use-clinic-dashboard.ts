@@ -104,6 +104,25 @@ export function useClinicDashboard() {
       const patientsList: Patient[] = rawPatients.map((row) => mapRowToPatient(row));
       const recentPatients = patientsList.slice(0, 5);
 
+      if (rawPatients.length === 0) {
+        // Fallback de diagnóstico: verifica se existem pacientes legados órfãos (sem clinica_id)
+        const orphanCheck = await supabase
+          .from("pacientes")
+          .select("id, name, clinica_id")
+          .is("clinica_id", null);
+
+        if (orphanCheck.data && orphanCheck.data.length > 0) {
+          console.warn(
+            `[useClinicDashboard] ATENÇÃO: Encontrados ${orphanCheck.data.length} pacientes órfãos (clinica_id = null) no Supabase! Execute o script SQL de migração para vinculá-los à clínica ${clinicId}.`,
+            orphanCheck.data,
+          );
+        } else {
+          console.log(`[useClinicDashboard] Nenhum paciente cadastrado para a clínica ${clinicId}.`);
+        }
+      } else {
+        console.log(`[useClinicDashboard] Sucesso: ${rawPatients.length} pacientes vinculados à clínica ${clinicId}.`);
+      }
+
       // Mapeamento de Triagens
       const rawTriages = triagensRes.data || [];
       const triagesList: Triage[] = rawTriages.map((row) => mapRowToTriage(row));

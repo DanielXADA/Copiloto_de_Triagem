@@ -23,6 +23,7 @@ import {
   Field,
   Input,
 } from "@/components/kit";
+import { MaskedInput } from "@/components/ui/masked-input";
 import { cn } from "@/lib/utils";
 
 function extractErrorMessage(err: unknown): string {
@@ -399,11 +400,13 @@ export function DadosClinicaTab() {
             {/* CNPJ */}
             <div>
               <Field label="CNPJ" hint="Cadastro Nacional da Pessoa Jurídica">
-                <Input
+                <MaskedInput
+                  mask="cnpj"
                   value={cnpj}
-                  onChange={(v) => setCnpj(v)}
+                  onValueChange={(val) => setCnpj(val)}
                   placeholder="00.000.000/0001-00"
-                  className="h-10"
+                  disabled={isSaving || isLoading}
+                  className="h-10 bg-surface"
                 />
               </Field>
             </div>
@@ -412,16 +415,16 @@ export function DadosClinicaTab() {
             <div>
               <Field label="Telefone Comercial" hint="Número de contato para WhatsApp ou recepção">
                 <div className="relative mt-1">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground z-10">
                     <Phone className="size-4" />
                   </div>
-                  <input
-                    type="text"
+                  <MaskedInput
+                    mask="phone"
                     value={telefone}
-                    onChange={(e) => setTelefone(e.target.value)}
-                    placeholder="(11) 3344-5566"
+                    onValueChange={(val) => setTelefone(val)}
+                    placeholder="(11) 98765-4321"
                     disabled={isSaving || isLoading}
-                    className="h-10 w-full rounded-lg border border-input bg-surface pl-9 pr-3 text-[13px] outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-50 transition-all"
+                    className="h-10 bg-surface pl-9"
                   />
                 </div>
               </Field>

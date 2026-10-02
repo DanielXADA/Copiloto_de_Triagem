@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { CopilotoLogo } from "@/components/brand/copiloto-logo";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -197,19 +198,7 @@ function LoginPage() {
         <div className="absolute -bottom-32 -right-32 size-96 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
 
         <div className="relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
-              <Activity className="size-6" strokeWidth={2.4} />
-            </div>
-            <div>
-              <p className="text-lg font-bold tracking-tight text-foreground">
-                Copiloto <span className="text-primary">Med</span>
-              </p>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                Triagem médica inteligente
-              </p>
-            </div>
-          </div>
+          <CopilotoLogo size="lg" />
         </div>
 
         <div className="relative z-10 max-w-lg space-y-6">
@@ -261,19 +250,7 @@ function LoginPage() {
       <div className="flex flex-1 flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-20">
         <div className="mx-auto w-full max-w-md">
           {/* Logo mobile */}
-          <div className="flex items-center gap-2.5 mb-8 lg:hidden">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Activity className="size-5" strokeWidth={2.4} />
-            </div>
-            <div>
-              <p className="text-base font-semibold tracking-tight text-foreground">
-                Copiloto <span className="text-primary">Med</span>
-              </p>
-              <p className="text-[10px] tracking-wide text-muted-foreground uppercase">
-                Triagem médica inteligente
-              </p>
-            </div>
-          </div>
+          <CopilotoLogo size="md" className="mb-8 lg:hidden" />
 
           {/* Seletor de Modo: Entrar / Criar Conta */}
           <div className="mb-6 flex rounded-xl bg-secondary p-1 border border-border">

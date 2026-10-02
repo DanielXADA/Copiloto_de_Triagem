@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { CopilotoLogo, CopilotoIcon } from "@/components/brand/copiloto-logo";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import { toast } from "sonner";
@@ -68,21 +69,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen w-full bg-background">
       {/* Sidebar de navegação */}
       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface lg:flex">
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary">
-            <Activity className="size-5 text-primary-foreground" strokeWidth={2.4} />
-          </div>
-          <div className="leading-tight truncate max-w-[170px]">
-            <p className="text-[14px] font-semibold tracking-tight truncate">
-              {currentClinic?.nome ?? "Copiloto Med"}
-            </p>
-            <p className="text-[10px] tracking-wide text-primary font-medium uppercase truncate">
-              {cargoLabel}
-            </p>
-          </div>
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-border/60">
+          <CopilotoLogo
+            size="md"
+            clinicName={currentClinic?.nome ?? "Copiloto Med"}
+            badge={cargoLabel}
+          />
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-2">
+        <nav className="flex flex-1 flex-col gap-1 px-3 py-3">
           {nav.map((item) => {
             const active = pathname === item.to;
             return (
@@ -92,7 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors",
                   active
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                 )}
               >
@@ -119,6 +114,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen w-full flex-col lg:pl-60">
         {/* Header principal com busca e perfil dinâmico */}
         <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-surface px-5">
+          <div className="lg:hidden shrink-0">
+            <CopilotoIcon size="sm" />
+          </div>
           <div className="relative w-full max-w-lg">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <input

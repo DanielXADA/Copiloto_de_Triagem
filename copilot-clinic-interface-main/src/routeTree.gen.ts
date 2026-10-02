@@ -18,6 +18,7 @@ import { Route as PacientesRouteImport } from './routes/pacientes'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as TriagensRouteImport } from './routes/triagens'
+import { Route as AtendimentoIdRouteImport } from './routes/atendimento.$id'
 import { Route as ConfiguracoesPerfilRouteImport } from './routes/configuracoes_.perfil'
 
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +66,11 @@ const TriagensRoute = TriagensRouteImport.update({
   path: '/triagens',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AtendimentoIdRoute = AtendimentoIdRouteImport.update({
+  id: '/atendimento/$id',
+  path: '/atendimento/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConfiguracoesPerfilRoute = ConfiguracoesPerfilRouteImport.update({
   id: '/configuracoes_/perfil',
   path: '/configuracoes/perfil',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof RelatoriosRoute
   '/setup': typeof SetupRoute
   '/triagens': typeof TriagensRoute
+  '/atendimento/$id': typeof AtendimentoIdRoute
   '/configuracoes/perfil': typeof ConfiguracoesPerfilRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/relatorios': typeof RelatoriosRoute
   '/setup': typeof SetupRoute
   '/triagens': typeof TriagensRoute
+  '/atendimento/$id': typeof AtendimentoIdRoute
   '/configuracoes/perfil': typeof ConfiguracoesPerfilRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/relatorios': typeof RelatoriosRoute
   '/setup': typeof SetupRoute
   '/triagens': typeof TriagensRoute
+  '/atendimento/$id': typeof AtendimentoIdRoute
   '/configuracoes_/perfil': typeof ConfiguracoesPerfilRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/setup'
     | '/triagens'
+    | '/atendimento/$id'
     | '/configuracoes/perfil'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/setup'
     | '/triagens'
+    | '/atendimento/$id'
     | '/configuracoes/perfil'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/setup'
     | '/triagens'
+    | '/atendimento/$id'
     | '/configuracoes_/perfil'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   RelatoriosRoute: typeof RelatoriosRoute
   SetupRoute: typeof SetupRoute
   TriagensRoute: typeof TriagensRoute
+  AtendimentoIdRoute: typeof AtendimentoIdRoute
   ConfiguracoesPerfilRoute: typeof ConfiguracoesPerfilRoute
 }
 
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TriagensRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/atendimento/$id': {
+      id: '/atendimento/$id'
+      path: '/atendimento/$id'
+      fullPath: '/atendimento/$id'
+      preLoaderRoute: typeof AtendimentoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/configuracoes_/perfil': {
       id: '/configuracoes_/perfil'
       path: '/configuracoes/perfil'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   RelatoriosRoute: RelatoriosRoute,
   SetupRoute: SetupRoute,
   TriagensRoute: TriagensRoute,
+  AtendimentoIdRoute: AtendimentoIdRoute,
   ConfiguracoesPerfilRoute: ConfiguracoesPerfilRoute,
 }
 export const routeTree = rootRouteImport
