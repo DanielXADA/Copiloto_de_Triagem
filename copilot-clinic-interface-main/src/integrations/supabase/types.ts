@@ -8,6 +8,54 @@ export type Database = {
   };
   public: {
     Tables: {
+      agendamentos: {
+        Row: {
+          id: string;
+          clinica_id: string;
+          paciente_id: string | null;
+          paciente_nome: string;
+          data_hora: string;
+          duracao_minutos: number;
+          tipo: string;
+          area: string;
+          status: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido";
+          observacoes: string | null;
+          teleconsulta_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string | undefined;
+          clinica_id: string;
+          paciente_id?: string | null | undefined;
+          paciente_nome: string;
+          data_hora: string;
+          duracao_minutos?: number | undefined;
+          tipo?: string | undefined;
+          area?: string | undefined;
+          status?: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido" | undefined;
+          observacoes?: string | null | undefined;
+          teleconsulta_url?: string | null | undefined;
+          created_at?: string | undefined;
+          updated_at?: string | undefined;
+        };
+        Update: {
+          id?: string | undefined;
+          clinica_id?: string | undefined;
+          paciente_id?: string | null | undefined;
+          paciente_nome?: string | undefined;
+          data_hora?: string | undefined;
+          duracao_minutos?: number | undefined;
+          tipo?: string | undefined;
+          area?: string | undefined;
+          status?: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido" | undefined;
+          observacoes?: string | null | undefined;
+          teleconsulta_url?: string | null | undefined;
+          created_at?: string | undefined;
+          updated_at?: string | undefined;
+        };
+        Relationships: [];
+      };
       pacientes: {
         Row: {
           id: string;
@@ -266,6 +314,51 @@ export type Database = {
           ativo?: boolean | undefined;
           created_at?: string | undefined;
           updated_at?: string | undefined;
+        };
+        Relationships: [];
+      };
+      perfis: {
+        Row: {
+          id: string;
+          nome_completo: string | null;
+          avatar_url: string | null;
+          criado_em: string | null;
+        };
+        Insert: {
+          id: string;
+          nome_completo?: string | null | undefined;
+          avatar_url?: string | null | undefined;
+          criado_em?: string | null | undefined;
+        };
+        Update: {
+          id?: string | undefined;
+          nome_completo?: string | null | undefined;
+          avatar_url?: string | null | undefined;
+          criado_em?: string | null | undefined;
+        };
+        Relationships: [];
+      };
+      membros_clinica: {
+        Row: {
+          id: string;
+          clinica_id: string;
+          usuario_id: string;
+          cargo: "admin_geral" | "admin_clinica" | "medico" | "recepcionista";
+          criado_em: string | null;
+        };
+        Insert: {
+          id?: string | undefined;
+          clinica_id: string;
+          usuario_id: string;
+          cargo?: "admin_geral" | "admin_clinica" | "medico" | "recepcionista" | undefined;
+          criado_em?: string | null | undefined;
+        };
+        Update: {
+          id?: string | undefined;
+          clinica_id?: string | undefined;
+          usuario_id?: string | undefined;
+          cargo?: "admin_geral" | "admin_clinica" | "medico" | "recepcionista" | undefined;
+          criado_em?: string | null | undefined;
         };
         Relationships: [];
       };

@@ -16,7 +16,9 @@ import { Route as DossiesRouteImport } from './routes/dossies'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PacientesRouteImport } from './routes/pacientes'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as TriagensRouteImport } from './routes/triagens'
+import { Route as ConfiguracoesPerfilRouteImport } from './routes/configuracoes_.perfil'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -53,9 +55,19 @@ const RelatoriosRoute = RelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TriagensRoute = TriagensRouteImport.update({
   id: '/triagens',
   path: '/triagens',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracoesPerfilRoute = ConfiguracoesPerfilRouteImport.update({
+  id: '/configuracoes_/perfil',
+  path: '/configuracoes/perfil',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -67,7 +79,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
   '/relatorios': typeof RelatoriosRoute
+  '/setup': typeof SetupRoute
   '/triagens': typeof TriagensRoute
+  '/configuracoes/perfil': typeof ConfiguracoesPerfilRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,7 +91,9 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
   '/relatorios': typeof RelatoriosRoute
+  '/setup': typeof SetupRoute
   '/triagens': typeof TriagensRoute
+  '/configuracoes/perfil': typeof ConfiguracoesPerfilRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -88,7 +104,9 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
   '/relatorios': typeof RelatoriosRoute
+  '/setup': typeof SetupRoute
   '/triagens': typeof TriagensRoute
+  '/configuracoes_/perfil': typeof ConfiguracoesPerfilRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -100,7 +118,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/pacientes'
     | '/relatorios'
+    | '/setup'
     | '/triagens'
+    | '/configuracoes/perfil'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -110,7 +130,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/pacientes'
     | '/relatorios'
+    | '/setup'
     | '/triagens'
+    | '/configuracoes/perfil'
   id:
     | '__root__'
     | '/'
@@ -120,7 +142,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/pacientes'
     | '/relatorios'
+    | '/setup'
     | '/triagens'
+    | '/configuracoes_/perfil'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -131,7 +155,9 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PacientesRoute: typeof PacientesRoute
   RelatoriosRoute: typeof RelatoriosRoute
+  SetupRoute: typeof SetupRoute
   TriagensRoute: typeof TriagensRoute
+  ConfiguracoesPerfilRoute: typeof ConfiguracoesPerfilRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -185,11 +211,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/triagens': {
       id: '/triagens'
       path: '/triagens'
       fullPath: '/triagens'
       preLoaderRoute: typeof TriagensRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracoes_/perfil': {
+      id: '/configuracoes_/perfil'
+      path: '/configuracoes/perfil'
+      fullPath: '/configuracoes/perfil'
+      preLoaderRoute: typeof ConfiguracoesPerfilRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -203,7 +243,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PacientesRoute: PacientesRoute,
   RelatoriosRoute: RelatoriosRoute,
+  SetupRoute: SetupRoute,
   TriagensRoute: TriagensRoute,
+  ConfiguracoesPerfilRoute: ConfiguracoesPerfilRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

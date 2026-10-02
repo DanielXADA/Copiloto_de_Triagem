@@ -17,6 +17,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "@/components/app-shell";
 import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { TenantProvider, useTenant } from "@/contexts/tenant-context";
 
 function NotFoundComponent() {
   return (
@@ -132,10 +133,71 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 /**
+ * Route Guard de Tenant e Permissões
+ * Se o usuário autenticado não possui nenhuma clínica vinculada, redireciona para /setup.
+ * Se já possui clínica e tenta acessar /setup, redireciona para /configuracoes.
+ * Renderiza /setup sem AppShell para oferecer uma experiência de onboarding limpa.
+ */
+function AuthenticatedTenantGuard() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const { hasClinic, loading: tenantLoading } = useTenant();
+
+  const isSetupPage = pathname === "/setup";
+
+  useEffect(() => {
+    if (!tenantLoading) {
+      if (!hasClinic && !isSetupPage) {
+        console.log("[TenantGuard] ⚠️ Usuário sem clínica vinculada. Redirecionando para /setup...");
+        navigate({ to: "/setup" });
+      } else if (hasClinic && isSetupPage) {
+        console.log("[TenantGuard] ✅ Usuário já possui clínica ativa. Redirecionando para /configuracoes...");
+        navigate({ to: "/configuracoes" });
+      }
+    }
+  }, [hasClinic, tenantLoading, isSetupPage, navigate]);
+
+  if (tenantLoading) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background gap-3">
+        <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm">
+          <Activity className="size-6 animate-pulse" />
+        </div>
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Loader2 className="size-4 animate-spin text-primary" />
+          <span>Sincronizando dados da clínica e permissões...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirecionamento pendente para /setup
+  if (!hasClinic && !isSetupPage) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background gap-2">
+        <Loader2 className="size-5 animate-spin text-primary" />
+        <span className="text-xs text-muted-foreground">Redirecionando para configuração inicial da clínica...</span>
+      </div>
+    );
+  }
+
+  // Na tela de setup, renderiza SEM AppShell (onboarding dedicado e limpo)
+  if (isSetupPage) {
+    return <Outlet />;
+  }
+
+  // Em rotas regulares protegidas, renderiza com AppShell completo
+  return (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  );
+}
+
+/**
  * Route Guard de Autenticação Segura
  * Garante que nenhuma rota protegida seja exibida sem sessão válida no Supabase.
  * Se não autenticado, redireciona compulsoriamente para /login.
- * AppShell só é instanciado para usuários autenticados.
  */
 function AuthRouteGuard() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -186,11 +248,11 @@ function AuthRouteGuard() {
     );
   }
 
-  // 4. Usuário autenticado: renderiza o AppShell completo com as rotas protegidas
+  // 4. Usuário autenticado: renderiza o TenantProvider e o AuthenticatedTenantGuard
   return (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <TenantProvider>
+      <AuthenticatedTenantGuard />
+    </TenantProvider>
   );
 }
 

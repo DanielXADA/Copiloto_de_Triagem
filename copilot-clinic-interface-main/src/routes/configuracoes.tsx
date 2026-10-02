@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Building2, Users, Bell, ShieldCheck, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Building2, Users, Bell, ShieldCheck, Plus, User, ShieldAlert } from "lucide-react";
 import {
   Card,
   CardHead,
@@ -13,6 +13,10 @@ import {
   Toggle,
 } from "@/components/kit";
 import { cn } from "@/lib/utils";
+import { PerfilEditor } from "@/components/perfil/perfil-editor";
+import { DadosClinicaTab } from "@/components/configuracoes/dados-clinica-tab";
+import { EquipeClinicaTab } from "@/components/configuracoes/equipe-clinica-tab";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
@@ -21,12 +25,12 @@ export const Route = createFileRoute("/configuracoes")({
       {
         name: "description",
         content:
-          "Gestão da clínica no Copiloto Med: dados cadastrais, equipe, preferências de triagem, notificações e segurança.",
+          "Gestão da clínica no Copiloto Med: dados cadastrais, perfil profissional, equipe, preferências de triagem, notificações e segurança.",
       },
       { property: "og:title", content: "Configurações — Copiloto Med" },
       {
         property: "og:description",
-        content: "Gerencie clínica, equipe e preferências do pré-atendimento.",
+        content: "Gerencie perfil, clínica, equipe e preferências do pré-atendimento.",
       },
     ],
   }),
@@ -34,21 +38,19 @@ export const Route = createFileRoute("/configuracoes")({
 });
 
 const sections = [
+  { key: "perfil", label: "Meu Perfil", icon: User },
   { key: "clinica", label: "Clínica", icon: Building2 },
   { key: "equipe", label: "Equipe", icon: Users },
   { key: "preferencias", label: "Preferências", icon: Bell },
   { key: "seguranca", label: "Segurança", icon: ShieldCheck },
 ] as const;
 
-const team = [
-  { name: "Ana Beatriz", role: "Médica • Clínica Geral", access: "Administrador" },
-  { name: "Rodrigo Prado", role: "Médico • Cardiologia", access: "Médico" },
-  { name: "Beatriz Coelho", role: "Recepção", access: "Operacional" },
-  { name: "Marcos Vinícius", role: "Enfermagem", access: "Operacional" },
-];
-
 function Configuracoes() {
-  const [tab, setTab] = useState<(typeof sections)[number]["key"]>("clinica");
+  const { canAccessTab, isAdmin, cargoLabel, currentClinic } = usePermissions();
+
+  const [tab, setTab] = useState<(typeof sections)[number]["key"]>(
+    isAdmin ? "clinica" : "perfil",
+  );
   const [prefs, setPrefs] = useState({
     autoTriage: true,
     whatsapp: true,
@@ -58,88 +60,87 @@ function Configuracoes() {
   });
   const toggle = (k: keyof typeof prefs) => setPrefs((p) => ({ ...p, [k]: !p[k] }));
 
+  // Se o usuário não tiver permissão para a aba ativa (ex: médico tentando clinica), redireciona para 'perfil'
+  useEffect(() => {
+    if (!canAccessTab(tab)) {
+      setTab("perfil");
+    }
+  }, [tab, canAccessTab]);
+
+  const visibleSections = sections.filter((s) => canAccessTab(s.key));
+
   return (
     <div>
       <PageHeader
         title="Configurações"
         description="Gestão da clínica, equipe e preferências do pré-atendimento"
-        actions={<Button>Salvar alterações</Button>}
+        actions={
+          tab === "perfil" ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                window.location.href = "/configuracoes/perfil";
+              }}
+            >
+              Abrir URL dedicada (/configuracoes/perfil)
+            </Button>
+          ) : tab === "preferencias" || tab === "seguranca" ? (
+            <Button>Salvar preferências</Button>
+          ) : null
+        }
       />
 
       <div className="grid gap-5 xl:grid-cols-[220px_1fr]">
         <Card className="h-fit p-2">
-          {sections.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setTab(s.key)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors",
-                tab === s.key
-                  ? "bg-primary-soft text-accent-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-              )}
-            >
-              <s.icon className="size-4" />
-              {s.label}
-            </button>
-          ))}
+          <div className="mb-2 px-3 pt-2 pb-1.5 border-b border-border/60">
+            <p className="text-[12px] font-semibold text-foreground truncate">
+              {currentClinic?.nome ?? "Configurações"}
+            </p>
+            <span className="inline-flex items-center gap-1 text-[10px] text-primary font-medium mt-0.5">
+              <span className="size-1.5 rounded-full bg-primary" />
+              {cargoLabel}
+            </span>
+          </div>
+
+          <div className="space-y-0.5">
+            {visibleSections.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setTab(s.key)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors cursor-pointer",
+                  tab === s.key
+                    ? "bg-primary-soft text-accent-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                )}
+              >
+                <s.icon className="size-4" />
+                {s.label}
+              </button>
+            ))}
+          </div>
         </Card>
 
         <div className="space-y-5">
-          {tab === "clinica" && (
-            <Card>
-              <CardHead title="Dados da clínica" subtitle="Informações exibidas nos dossiês" />
-              <div className="grid gap-5 px-5 py-6 sm:grid-cols-2">
-                <Field label="Nome da clínica">
-                  <Input defaultValue="Clínica Vida Integrada" />
-                </Field>
-                <Field label="CNPJ">
-                  <Input defaultValue="12.345.678/0001-90" />
-                </Field>
-                <Field label="Telefone">
-                  <Input defaultValue="(11) 3344-5566" />
-                </Field>
-                <Field label="E-mail de contato">
-                  <Input defaultValue="contato@vidaintegrada.com.br" />
-                </Field>
-                <Field label="Endereço">
-                  <Input defaultValue="Av. Paulista, 1400 — São Paulo, SP" />
-                </Field>
-                <Field label="Responsável técnico">
-                  <Input defaultValue="Dra. Ana Beatriz — CRM 123456/SP" />
-                </Field>
-              </div>
+          {!canAccessTab(tab) && (
+            <Card className="p-8 text-center">
+              <ShieldAlert className="size-10 text-warning mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-foreground">Acesso Restrito</h3>
+              <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
+                As configurações de gestão da clínica são exclusivas para administradores. Seu cargo atual é{" "}
+                <span className="font-semibold text-foreground">{cargoLabel}</span>.
+              </p>
+              <Button className="mt-4" onClick={() => setTab("perfil")}>
+                Voltar para Meu Perfil
+              </Button>
             </Card>
           )}
 
-          {tab === "equipe" && (
-            <Card>
-              <CardHead
-                title="Equipe"
-                subtitle="4 membros ativos"
-                action={
-                  <Button variant="outline">
-                    <Plus className="size-4" /> Convidar
-                  </Button>
-                }
-              />
-              <ul className="divide-y divide-border">
-                {team.map((m) => (
-                  <li key={m.name} className="flex items-center gap-3 px-5 py-4">
-                    <Avatar name={m.name} />
-                    <div className="flex-1">
-                      <p className="text-[13px] font-medium">{m.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{m.role}</p>
-                    </div>
-                    <Badge tone={m.access === "Administrador" ? "blue" : "neutral"}>
-                      {m.access}
-                    </Badge>
-                    <Button variant="ghost">Gerenciar</Button>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
+          {tab === "perfil" && <PerfilEditor showHeroCard={true} />}
+
+          {tab === "clinica" && canAccessTab("clinica") && <DadosClinicaTab />}
+
+          {tab === "equipe" && canAccessTab("equipe") && <EquipeClinicaTab />}
 
           {tab === "preferencias" && (
             <Card>
@@ -182,7 +183,7 @@ function Configuracoes() {
             </Card>
           )}
 
-          {tab === "seguranca" && (
+          {tab === "seguranca" && canAccessTab("seguranca") && (
             <Card>
               <CardHead title="Segurança e privacidade" subtitle="Conformidade com a LGPD" />
               <div className="space-y-5 px-5 py-6">

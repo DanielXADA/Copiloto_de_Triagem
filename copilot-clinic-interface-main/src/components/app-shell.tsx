@@ -13,10 +13,12 @@ import {
   Activity,
   LogOut,
   Loader2,
+  User,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -41,6 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const { profile, signOut } = useAuth();
+  const { currentClinic, cargoLabel, isAdmin } = usePermissions();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -69,12 +72,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex size-9 items-center justify-center rounded-lg bg-primary">
             <Activity className="size-5 text-primary-foreground" strokeWidth={2.4} />
           </div>
-          <div className="leading-tight">
-            <p className="text-[15px] font-semibold tracking-tight">
-              Copiloto <span className="text-primary">Med</span>
+          <div className="leading-tight truncate max-w-[170px]">
+            <p className="text-[14px] font-semibold tracking-tight truncate">
+              {currentClinic?.nome ?? "Copiloto Med"}
             </p>
-            <p className="text-[10px] tracking-wide text-muted-foreground uppercase">
-              Triagem médica inteligente
+            <p className="text-[10px] tracking-wide text-primary font-medium uppercase truncate">
+              {cargoLabel}
             </p>
           </div>
         </div>
@@ -101,9 +104,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="m-3 rounded-lg border border-border bg-primary-soft p-4">
-          <p className="text-[13px] font-semibold">Plano Clínica Pro</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            412 de 500 triagens usadas neste mês.
+          <p className="text-[13px] font-semibold">
+            {currentClinic?.plano ? `Plano ${currentClinic.plano}` : "Plano Pro"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground truncate">
+            {currentClinic?.nome ?? "Unidade Ativa"}
           </p>
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface">
             <div className="h-full w-[82%] rounded-full bg-primary" />
@@ -151,7 +156,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       {profile.name}
                     </p>
                     <p className="text-[11px] text-muted-foreground truncate max-w-[140px]">
-                      {profile.specialty}
+                      {cargoLabel}
                     </p>
                   </div>
                   <ChevronDown className="size-4 text-muted-foreground shrink-0" />
@@ -171,10 +176,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
-                      {profile.email || "Médico Credenciado"}
+                      {profile.email || "Usuário Conectado"}
                     </p>
-                    <p className="text-[11px] text-primary font-medium mt-0.5">
-                      {profile.specialty}
+                    <p className="text-[11px] text-primary font-medium mt-0.5 truncate">
+                      {currentClinic?.nome ?? "Clínica Integrada"} • {cargoLabel}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -183,13 +188,25 @@ export function AppShell({ children }: { children: ReactNode }) {
 
                 <DropdownMenuItem asChild>
                   <Link
-                    to="/configuracoes"
+                    to="/configuracoes/perfil"
                     className="flex w-full items-center gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer"
                   >
-                    <Settings className="size-4 text-muted-foreground" />
-                    <span>Configurações da clínica</span>
+                    <User className="size-4 text-muted-foreground" />
+                    <span>Meu Perfil</span>
                   </Link>
                 </DropdownMenuItem>
+
+                {isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link
+                      to="/configuracoes"
+                      className="flex w-full items-center gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer"
+                    >
+                      <Settings className="size-4 text-muted-foreground" />
+                      <span>Configurações da clínica</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
 
                 <DropdownMenuItem asChild>
                   <Link
