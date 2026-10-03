@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useTenant, type TenantContextValue } from "@/contexts/tenant-context";
 
 interface CopilotoLogoProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -64,6 +65,18 @@ export function CopilotoLogo({
   badge,
   className,
 }: CopilotoLogoProps) {
+  // Acesso seguro e resiliente ao contexto do Tenant
+  // Em rotas públicas (como /login e /t/:id), renderiza com segurança fora do TenantProvider
+  let tenant: TenantContextValue | null = null;
+  try {
+    tenant = useTenant({ optional: true });
+  } catch {
+    tenant = null;
+  }
+
+  const effectiveClinicName = clinicName ?? tenant?.currentClinic?.nome;
+  const effectiveBadge = badge ?? (tenant?.currentClinic ? tenant?.cargoLabel : undefined);
+
   return (
     <div className={cn("flex items-center gap-3 select-none", className)}>
       <CopilotoIcon size={size} />
@@ -83,16 +96,16 @@ export function CopilotoLogo({
               Copiloto <span className="text-primary font-extrabold">Med</span>
             </span>
 
-            {badge && (
+            {effectiveBadge && (
               <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase text-primary">
-                {badge}
+                {effectiveBadge}
               </span>
             )}
           </div>
 
-          {clinicName ? (
+          {effectiveClinicName ? (
             <p className="truncate text-xs font-medium text-muted-foreground mt-0.5">
-              {clinicName}
+              {effectiveClinicName}
             </p>
           ) : (
             <p className="text-[10px] tracking-wider uppercase text-muted-foreground/80 font-medium">

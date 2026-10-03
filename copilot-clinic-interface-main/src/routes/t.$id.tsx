@@ -21,6 +21,7 @@ import {
   ThumbsUp,
   MapPin,
   Lock,
+  Stethoscope,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { CopilotoIcon } from "@/components/brand/copiloto-logo";
@@ -141,9 +142,9 @@ function PublicTriagePage() {
 
   const [appointment, setAppointment] = useState<AppointmentInfo | null>(null);
 
-  // Controle de passos (1 a 5)
-  // 1: Dados Pessoais | 2: Queixa Principal | 3: Histórico Rápido | 4: Escala de Dor | 5: Revisão e Envio
-  const [step, setStep] = useState(1);
+  // Controle de passos (0 a 5)
+  // 0: Boas-vindas | 1: Dados Pessoais | 2: Queixa Principal | 3: Histórico Rápido | 4: Escala de Dor | 5: Revisão e Envio
+  const [step, setStep] = useState(0);
 
   const [formData, setFormData] = useState<FormState>({
     patientName: "",
@@ -487,6 +488,74 @@ function PublicTriagePage() {
             💡 <strong>Dica:</strong> Recomendamos chegar com 10 minutos de antecedência ao consultório.
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Renderização: Passos 0 (Boas-vindas Inicial)
+  if (step === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-foreground dark:bg-slate-950 flex flex-col justify-between p-4 sm:p-6">
+        <header className="mx-auto w-full max-w-lg flex items-center justify-between py-2">
+          <div className="flex items-center gap-2.5">
+            <CopilotoIcon size="sm" />
+            <div>
+              <p className="text-xs font-bold leading-tight tracking-tight">
+                Copiloto <span className="text-primary">Med</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">Pré-Triagem Digital</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+            <Lock className="size-3" />
+            <span>Seguro • LGPD</span>
+          </div>
+        </header>
+
+        <main className="mx-auto w-full max-w-lg my-auto py-6">
+          <div className="rounded-3xl border border-primary/20 bg-card p-6 sm:p-8 shadow-xl text-center space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-300">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-primary text-white shadow-md shadow-primary/20">
+              <Sparkles className="size-8" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                <Stethoscope className="size-3.5" /> Assistente Virtual Médico
+              </span>
+              <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+                Boas-vindas ao seu atendimento!
+              </h1>
+            </div>
+
+            <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 text-left text-xs sm:text-sm text-foreground/90 leading-relaxed font-medium">
+              "Olá! Sou o assistente virtual do Dr(a). Para adiantar seu atendimento, faremos algumas perguntas rápidas sobre seus sintomas. É seguro, rápido e vai direto para o médico."
+            </div>
+
+            <div className="grid gap-3 text-left text-xs text-muted-foreground pt-2">
+              <div className="flex items-center gap-2.5 rounded-xl border border-border bg-secondary/50 p-3">
+                <Clock className="size-4 text-primary shrink-0" />
+                <span>Leve menos de 2 minutos para responder no celular ou PC</span>
+              </div>
+              <div className="flex items-center gap-2.5 rounded-xl border border-border bg-secondary/50 p-3">
+                <ShieldCheck className="size-4 text-emerald-500 shrink-0" />
+                <span>Seus dados são protegidos por sigilo médico e LGPD</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-md transition-all hover:bg-primary/95 focus:outline-none cursor-pointer"
+            >
+              <span>Iniciar Pré-Triagem Agora</span>
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+        </main>
+
+        <footer className="mx-auto w-full max-w-lg text-center text-[11px] text-muted-foreground py-2">
+          Copiloto Med • Atendimento médico inteligente antes da consulta
+        </footer>
       </div>
     );
   }

@@ -127,6 +127,19 @@ function Agenda() {
   // Modal de Confirmação para Iniciar Atendimento
   const [confirmStartAppointment, setConfirmStartAppointment] = useState<Agendamento | null>(null);
 
+  // Controle de Check-in na Recepção (Na Sala de Espera)
+  const [checkedInIds, setCheckedInIds] = useState<Record<string, boolean>>({});
+
+  // Modal quando nenhum dossiê é encontrado para o paciente
+  const [noDossierModal, setNoDossierModal] = useState<{
+    isOpen: boolean;
+    patientName: string;
+    appointment?: Agendamento;
+  }>({
+    isOpen: false,
+    patientName: "",
+  });
+
   // Formulário do novo agendamento
   const [formData, setFormData] = useState({
     paciente_id: "",
@@ -459,6 +472,63 @@ function Agenda() {
     });
   };
 
+  // Alternar Check-in na Recepção (Na Sala de Espera)
+  const toggleCheckIn = (app: Agendamento) => {
+    const isChecked = !!checkedInIds[app.id];
+    const next = !isChecked;
+    setCheckedInIds((prev) => ({ ...prev, [app.id]: next }));
+
+    if (next) {
+      toast.success(`${app.paciente_nome} realizou Check-in!`, {
+        description: "Paciente em estado 'Chegou / Na Sala de Espera'.",
+      });
+    } else {
+      toast.info(`Check-in desativado para ${app.paciente_nome}.`);
+    }
+  };
+
+  // Abertura Inteligente de Dossiês
+  const handleOpenDossier = async (app: Agendamento) => {
+    try {
+      let query = supabase
+        .from("triagens")
+        .select("id")
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (app.paciente_id) {
+        query = query.or(`paciente_id.eq.${app.paciente_id},paciente_nome.ilike.%${app.paciente_nome}%`);
+      } else {
+        query = query.ilike("paciente_nome", `%${app.paciente_nome}%`);
+      }
+
+      const { data: dossies, error } = await query;
+
+      if (error) {
+        console.warn("[Agenda] Aviso ao consultar dossiê:", error.message);
+      }
+
+      if (dossies && dossies.length > 0 && dossies[0]?.id) {
+        navigate({
+          to: "/atendimento/$id",
+          params: { id: dossies[0].id },
+        });
+      } else {
+        setNoDossierModal({
+          isOpen: true,
+          patientName: app.paciente_nome,
+          appointment: app,
+        });
+      }
+    } catch (_err) {
+      setNoDossierModal({
+        isOpen: true,
+        patientName: app.paciente_nome,
+        appointment: app,
+      });
+    }
+  };
+
   // Iniciar Atendimento Clínico a partir da agenda
   const handleStartTriage = (app: Agendamento) => {
     toast.info(`Iniciando atendimento para ${app.paciente_nome}...`);
@@ -622,8 +692,8 @@ function Agenda() {
                         </p>
                       </div>
 
-                      {/* Status Interativo */}
-                      <div className="flex items-center gap-1.5">
+                      {/* Status Interativo & Controles da Recepção */}
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge
                           tone={
                             a.status === "Confirmado"
@@ -640,24 +710,61 @@ function Agenda() {
                           {a.status}
                         </Badge>
 
-                        {/* Botão de alternar status rápido */}
-                        {a.status === "Aguardando" && (
+                        {/* Ação 1: Botão Confirmar Presença (WhatsApp / Telefone) */}
+                        {a.status !== "Confirmado" && a.status !== "Concluido" && (
                           <button
-                            onClick={() => handleUpdateStatus(a.id, "Confirmado")}
-                            className="rounded-md p-1.5 text-success hover:bg-success/15 transition-colors"
-                            title="Marcar como Confirmado"
+                            type="button"
+                            onClick={() => {
+                              handleUpdateStatus(a.id, "Confirmado");
+                              toast.success("Presença confirmada pela recepção/WhatsApp!");
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                            title="Confirmar presença informada pelo paciente no WhatsApp"
                           >
-                            <CheckCircle2 className="size-4" />
+                            <CheckCheck className="size-3.5" />
+                            <span>Confirmar Presença</span>
                           </button>
+                        )}
+
+                        {/* Ação 2: Switch/Toggle de Check-in na Recepção (Na Sala de Espera) */}
+                        <div
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/60 px-2 py-1"
+                          title="Toggle de Check-in na recepção"
+                        >
+                          <span className="text-[11px] font-semibold text-muted-foreground">Check-in:</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleCheckIn(a)}
+                            className={cn(
+                              "relative inline-flex h-4 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                              checkedInIds[a.id] ? "bg-emerald-500" : "bg-muted-foreground/30",
+                            )}
+                            aria-label="Toggle Check-in"
+                          >
+                            <span
+                              className={cn(
+                                "pointer-events-none inline-block size-3 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out",
+                                checkedInIds[a.id] ? "translate-x-4" : "translate-x-0",
+                              )}
+                            />
+                          </button>
+                        </div>
+
+                        {/* Indicador visual de Chegou / Na Sala de Espera */}
+                        {checkedInIds[a.id] && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 animate-pulse">
+                            <span className="size-1.5 rounded-full bg-emerald-500 animate-ping" />
+                            Chegou / Na Sala de Espera
+                          </span>
                         )}
                       </div>
 
                       {/* Ações do Atendimento */}
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => navigate({ to: "/dossies" })}
+                          onClick={() => handleOpenDossier(a)}
                           className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
-                          title="Abrir dossiê"
+                          title="Abrir dossiê clínico (busca inteligente)"
                         >
                           <FileText className="size-4" />
                         </button>
@@ -1106,6 +1213,58 @@ function Agenda() {
               className="flex items-center gap-1.5"
             >
               <Play className="size-3.5" /> Iniciar Atendimento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Alerta: Nenhum Dossiê Encontrado */}
+      <Dialog
+        open={noDossierModal.isOpen}
+        onOpenChange={(open) =>
+          setNoDossierModal((prev) => ({ ...prev, isOpen: open }))
+        }
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <AlertCircle className="size-5 text-amber-500" />
+              <span>Nenhum Dossiê Encontrado</span>
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Nenhum dossiê foi encontrado para o(a) paciente{" "}
+              <strong className="text-foreground">{noDossierModal.patientName}</strong>.
+              O dossiê será gerado automaticamente após a triagem com IA.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3.5 text-xs text-muted-foreground space-y-1.5 my-2">
+            <p className="font-semibold text-foreground">💡 O que fazer agora?</p>
+            <p>
+              Você pode copiar o link de pré-triagem do paciente e enviá-lo pelo WhatsApp. Quando o paciente responder, a IA criará o dossiê clínico instantaneamente.
+            </p>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2">
+            {noDossierModal.appointment && (
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  handleCopyTriageLink(noDossierModal.appointment!);
+                  setNoDossierModal({ isOpen: false, patientName: "" });
+                }}
+                className="w-full sm:w-auto text-xs"
+              >
+                <Link2 className="size-3.5 mr-1" /> Copiar Link de Triagem com IA
+              </Button>
+            )}
+            <Button
+              type="button"
+              onClick={() => setNoDossierModal({ isOpen: false, patientName: "" })}
+              className="w-full sm:w-auto text-xs"
+            >
+              Entender
             </Button>
           </DialogFooter>
         </DialogContent>

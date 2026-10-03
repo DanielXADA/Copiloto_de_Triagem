@@ -55,7 +55,7 @@ export interface TenantContextValue {
   updateClinicState: (updated: Partial<ClinicaData>) => void;
 }
 
-const TenantContext = createContext<TenantContextValue | undefined>(undefined);
+export const TenantContext = createContext<TenantContextValue | undefined>(undefined);
 
 const CARGO_LABELS: Record<UserCargo, string> = {
   admin_geral: "Superadministrador",
@@ -227,10 +227,39 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
 }
 
-export function useTenant() {
+export const DEFAULT_TENANT_FALLBACK: TenantContextValue = {
+  currentClinic: null,
+  currentMember: null,
+  hasClinic: false,
+  cargo: null,
+  cargoLabel: "Sem Clínica",
+  loading: false,
+  error: null,
+  isAdmin: false,
+  isAdminGeral: false,
+  isAdminClinica: false,
+  isMedico: false,
+  isRecepcionista: false,
+  canManageClinic: false,
+  canManageTeam: false,
+  canViewSecurity: false,
+  canAccessTab: () => false,
+  reloadTenant: async () => {},
+  updateClinicState: () => {},
+};
+
+export function useTenant(options?: { optional?: boolean }): TenantContextValue {
   const context = useContext(TenantContext);
   if (!context) {
-    throw new Error("useTenant deve ser utilizado dentro de um <TenantProvider>");
+    if (options?.optional) {
+      return DEFAULT_TENANT_FALLBACK;
+    }
+    // Retorna fallback seguro para não quebrar a árvore de renderização em rotas públicas
+    return DEFAULT_TENANT_FALLBACK;
   }
   return context;
+}
+
+export function useOptionalTenant(): TenantContextValue | null {
+  return useContext(TenantContext) ?? null;
 }

@@ -15,6 +15,7 @@ import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as DossiesRouteImport } from './routes/dossies'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PacientesRouteImport } from './routes/pacientes'
+import { Route as PlanosRouteImport } from './routes/planos'
 import { Route as RelatoriosRouteImport } from './routes/relatorios'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as TriagensRouteImport } from './routes/triagens'
@@ -50,6 +51,11 @@ const LoginRoute = LoginRouteImport.update({
 const PacientesRoute = PacientesRouteImport.update({
   id: '/pacientes',
   path: '/pacientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanosRoute = PlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RelatoriosRoute = RelatoriosRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/dossies': typeof DossiesRoute
   '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
+  '/planos': typeof PlanosRoute
   '/relatorios': typeof RelatoriosRoute
   '/setup': typeof SetupRoute
   '/triagens': typeof TriagensRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByTo {
   '/dossies': typeof DossiesRoute
   '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
+  '/planos': typeof PlanosRoute
   '/relatorios': typeof RelatoriosRoute
   '/setup': typeof SetupRoute
   '/triagens': typeof TriagensRoute
@@ -119,6 +127,7 @@ export interface FileRoutesById {
   '/dossies': typeof DossiesRoute
   '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
+  '/planos': typeof PlanosRoute
   '/relatorios': typeof RelatoriosRoute
   '/setup': typeof SetupRoute
   '/triagens': typeof TriagensRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/dossies'
     | '/login'
     | '/pacientes'
+    | '/planos'
     | '/relatorios'
     | '/setup'
     | '/triagens'
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/dossies'
     | '/login'
     | '/pacientes'
+    | '/planos'
     | '/relatorios'
     | '/setup'
     | '/triagens'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/dossies'
     | '/login'
     | '/pacientes'
+    | '/planos'
     | '/relatorios'
     | '/setup'
     | '/triagens'
@@ -178,6 +190,7 @@ export interface RootRouteChildren {
   DossiesRoute: typeof DossiesRoute
   LoginRoute: typeof LoginRoute
   PacientesRoute: typeof PacientesRoute
+  PlanosRoute: typeof PlanosRoute
   RelatoriosRoute: typeof RelatoriosRoute
   SetupRoute: typeof SetupRoute
   TriagensRoute: typeof TriagensRoute
@@ -228,6 +241,13 @@ declare module '@tanstack/react-router' {
       path: '/pacientes'
       fullPath: '/pacientes'
       preLoaderRoute: typeof PacientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/planos': {
+      id: '/planos'
+      path: '/planos'
+      fullPath: '/planos'
+      preLoaderRoute: typeof PlanosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/relatorios': {
@@ -282,6 +302,7 @@ const rootRouteChildren: RootRouteChildren = {
   DossiesRoute: DossiesRoute,
   LoginRoute: LoginRoute,
   PacientesRoute: PacientesRoute,
+  PlanosRoute: PlanosRoute,
   RelatoriosRoute: RelatoriosRoute,
   SetupRoute: SetupRoute,
   TriagensRoute: TriagensRoute,

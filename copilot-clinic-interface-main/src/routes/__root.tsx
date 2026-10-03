@@ -145,18 +145,19 @@ function AuthenticatedTenantGuard() {
   const { hasClinic, loading: tenantLoading } = useTenant();
 
   const isSetupPage = pathname === "/setup";
+  const isPlanosPage = pathname === "/planos";
 
   useEffect(() => {
     if (!tenantLoading) {
-      if (!hasClinic && !isSetupPage) {
-        console.log("[TenantGuard] ⚠️ Usuário sem clínica vinculada. Redirecionando para /setup...");
-        navigate({ to: "/setup" });
-      } else if (hasClinic && isSetupPage) {
+      if (!hasClinic && !isSetupPage && !isPlanosPage) {
+        console.log("[TenantGuard] ⚠️ Usuário sem clínica vinculada. Redirecionando para /planos...");
+        navigate({ to: "/planos" });
+      } else if (hasClinic && (isSetupPage || isPlanosPage)) {
         console.log("[TenantGuard] ✅ Usuário já possui clínica ativa. Redirecionando para /configuracoes...");
         navigate({ to: "/configuracoes" });
       }
     }
-  }, [hasClinic, tenantLoading, isSetupPage, navigate]);
+  }, [hasClinic, tenantLoading, isSetupPage, isPlanosPage, navigate]);
 
   if (tenantLoading) {
     return (
@@ -172,18 +173,18 @@ function AuthenticatedTenantGuard() {
     );
   }
 
-  // Redirecionamento pendente para /setup
-  if (!hasClinic && !isSetupPage) {
+  // Redirecionamento pendente para /planos
+  if (!hasClinic && !isSetupPage && !isPlanosPage) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background gap-2">
         <Loader2 className="size-5 animate-spin text-primary" />
-        <span className="text-xs text-muted-foreground">Redirecionando para configuração inicial da clínica...</span>
+        <span className="text-xs text-muted-foreground">Redirecionando para seleção de planos...</span>
       </div>
     );
   }
 
-  // Na tela de setup, renderiza SEM AppShell (onboarding dedicado e limpo)
-  if (isSetupPage) {
+  // Nas telas de setup e planos, renderiza SEM AppShell (onboarding dedicado)
+  if (isSetupPage || isPlanosPage) {
     return <Outlet />;
   }
 
