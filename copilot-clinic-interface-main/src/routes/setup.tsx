@@ -115,8 +115,46 @@ function SetupPage() {
 
       console.log("[Setup] ✅ Clínica criada com sucesso! ID:", novaClinica.id);
 
-      // 2. Insert na tabela membros_clinica vinculando usuario_id como admin_geral
-      console.log(`[Setup] 2. Vinculando usuário (${user.id}) como admin_geral na clínica ${novaClinica.id}...`);
+      // 2. Mecanismo de Auto-Cura: Garante que o registro do usuário exista na tabela 'perfis'
+      // antes de criar o vínculo na tabela 'membros_clinica' (evitando violação da Foreign Key membros_clinica_usuario_id_fkey).
+      const userFullName =
+        (typeof user.user_metadata?.["full_name"] === "string" && user.user_metadata["full_name"].trim()) ||
+        (typeof user.user_metadata?.["name"] === "string" && user.user_metadata["name"].trim()) ||
+        (user.email ? user.email.split("@")[0] : null) ||
+        "Administrador";
+
+      console.log(`[Setup] 2. Auto-cura: Garantindo perfil do usuário (${user.id}) na tabela perfis...`);
+
+      // Tenta upsert passando id, email e nome_completo
+      const { error: erroPerfilComEmail } = await supabase
+        .from("perfis")
+        .upsert({
+          id: user.id,
+          nome_completo: userFullName,
+          email: user.email ?? null,
+        });
+
+      if (erroPerfilComEmail) {
+        console.warn("[Setup] ⚠️ Tentativa de upsert com coluna email falhou, tentando fallback com id e nome_completo:", erroPerfilComEmail.message);
+        // Fallback resiliente caso a tabela perfis no banco de dados não possua a coluna email
+        const { error: erroPerfilPadrao } = await supabase
+          .from("perfis")
+          .upsert({
+            id: user.id,
+            nome_completo: userFullName,
+          });
+
+        if (erroPerfilPadrao) {
+          console.error("[Setup] ❌ Falha crítica ao auto-curar tabela perfis:", erroPerfilPadrao);
+        } else {
+          console.log("[Setup] ✅ Perfil auto-curado com sucesso na tabela perfis (id, nome_completo).");
+        }
+      } else {
+        console.log("[Setup] ✅ Perfil auto-curado com sucesso na tabela perfis (id, nome_completo, email).");
+      }
+
+      // 3. Insert na tabela membros_clinica vinculando usuario_id como admin_geral
+      console.log(`[Setup] 3. Vinculando usuário (${user.id}) como admin_geral na clínica ${novaClinica.id}...`);
 
       const { data: novoMembro, error: erroMembro } = await supabase
         .from("membros_clinica")

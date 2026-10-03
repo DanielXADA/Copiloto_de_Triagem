@@ -321,18 +321,21 @@ export type Database = {
         Row: {
           id: string;
           nome_completo: string | null;
+          email: string | null;
           avatar_url: string | null;
           criado_em: string | null;
         };
         Insert: {
           id: string;
           nome_completo?: string | null | undefined;
+          email?: string | null | undefined;
           avatar_url?: string | null | undefined;
           criado_em?: string | null | undefined;
         };
         Update: {
           id?: string | undefined;
           nome_completo?: string | null | undefined;
+          email?: string | null | undefined;
           avatar_url?: string | null | undefined;
           criado_em?: string | null | undefined;
         };
