@@ -15,6 +15,10 @@ import {
   AlertCircle,
   Loader2,
   Play,
+  Link2,
+  Search,
+  Stethoscope,
+  Check,
 } from "lucide-react";
 import { Card, CardHead, PageHeader, Badge, Button, Avatar } from "@/components/kit";
 import {
@@ -58,7 +62,7 @@ export interface Agendamento {
   duracao_minutos: number;
   tipo: string;
   area: string;
-  status: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido";
+  status: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido" | "Triagem Concluída";
   observacoes: string | null;
   teleconsulta_url: string | null;
   created_at: string;
@@ -113,6 +117,16 @@ function Agenda() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Busca Inteligente / Autocomplete de Paciente
+  const [patientSearchTerm, setPatientSearchTerm] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isCreatingNewPatient, setIsCreatingNewPatient] = useState(false);
+  const [searchResults, setSearchResults] = useState<PacienteMin[]>([]);
+  const [searchingPatients, setSearchingPatients] = useState(false);
+
+  // Modal de Confirmação para Iniciar Atendimento
+  const [confirmStartAppointment, setConfirmStartAppointment] = useState<Agendamento | null>(null);
+
   // Formulário do novo agendamento
   const [formData, setFormData] = useState({
     paciente_id: "",
@@ -129,6 +143,53 @@ function Agenda() {
     () => getWeekDays(currentWeekReference),
     [currentWeekReference],
   );
+
+  // Busca inteligente de pacientes (a partir de 2 caracteres)
+  useEffect(() => {
+    const term = patientSearchTerm.trim();
+    if (term.length < 2) {
+      setSearchResults([]);
+      setSearchingPatients(false);
+      return;
+    }
+
+    // Filtro local imediato
+    const termLower = term.toLowerCase();
+    const localMatches = patients.filter(
+      (p) => p.name.toLowerCase().includes(termLower) || (p.cpf && p.cpf.includes(term)),
+    );
+    setSearchResults(localMatches);
+
+    // Consulta complementar no Supabase
+    const timer = setTimeout(async () => {
+      if (!currentClinic?.id) return;
+      setSearchingPatients(true);
+      try {
+        const { data } = await supabase
+          .from("pacientes")
+          .select("id, name, cpf, phone")
+          .or(`clinica_id.eq.${currentClinic.id},clinica_id.is.null`)
+          .ilike("name", `%${term}%`)
+          .limit(8);
+
+        if (data) {
+          setSearchResults((prev) => {
+            const map = new Map<string, PacienteMin>();
+            for (const item of [...prev, ...(data as PacienteMin[])]) {
+              map.set(item.id, item);
+            }
+            return Array.from(map.values());
+          });
+        }
+      } catch (err) {
+        console.warn("[Agenda] Erro ao buscar pacientes:", err);
+      } finally {
+        setSearchingPatients(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [patientSearchTerm, currentClinic?.id, patients]);
 
   // 1. Carregar agendamentos e pacientes reais da clínica
   const fetchData = useCallback(async () => {
@@ -237,6 +298,9 @@ function Agenda() {
       status: "Aguardando",
       observacoes: "",
     });
+    setPatientSearchTerm("");
+    setIsDropdownOpen(false);
+    setIsCreatingNewPatient(false);
     setIsModalOpen(true);
   };
 
@@ -248,17 +312,44 @@ function Agenda() {
       return;
     }
 
-    if (!formData.paciente_nome.trim()) {
-      toast.warning("Por favor, informe ou selecione o nome do paciente.");
+    const patientName = (formData.paciente_nome || patientSearchTerm).trim();
+    if (!patientName) {
+      toast.warning("Por favor, selecione ou informe o nome do paciente.");
       return;
     }
 
     setSaving(true);
     try {
+      let finalPacienteId = formData.paciente_id || null;
+
+      // Se for novo paciente (ou se não tem paciente_id vinculado)
+      if (!finalPacienteId && (isCreatingNewPatient || patientName)) {
+        // Pré-cadastro rápido na tabela pacientes
+        const { data: newPat, error: newPatError } = await supabase
+          .from("pacientes")
+          .insert({
+            clinica_id: currentClinic.id,
+            name: patientName,
+            status: "Novo",
+            plan: "Particular",
+            area: formData.area || "Clínica Geral",
+            cpf: "—",
+          })
+          .select("id, name, cpf, phone")
+          .single();
+
+        if (newPatError) {
+          console.warn("[Agenda] Aviso ao pré-cadastrar paciente:", newPatError.message);
+        } else if (newPat) {
+          finalPacienteId = newPat.id;
+          setPatients((prev) => [...prev, newPat as PacienteMin]);
+        }
+      }
+
       const payload = {
         clinica_id: currentClinic.id,
-        paciente_id: formData.paciente_id || null,
-        paciente_nome: formData.paciente_nome.trim(),
+        paciente_id: finalPacienteId,
+        paciente_nome: patientName,
         data_hora: new Date(formData.data_hora).toISOString(),
         duracao_minutos: Number(formData.duracao_minutos) || 30,
         tipo: formData.tipo,
@@ -275,7 +366,11 @@ function Agenda() {
 
       if (error) throw error;
 
-      toast.success("Compromisso agendado com sucesso!");
+      toast.success(
+        isCreatingNewPatient
+          ? `Paciente ${patientName} pré-cadastrado e consulta agendada!`
+          : "Compromisso agendado com sucesso!",
+      );
       setIsModalOpen(false);
       setAppointments((prev) => [...prev, data as Agendamento]);
     } catch (err: unknown) {
@@ -351,6 +446,19 @@ function Agenda() {
     });
   };
 
+  // Copiar link de pré-triagem pública do paciente
+  const handleCopyTriageLink = (app: Agendamento) => {
+    const triageUrl = `${window.location.origin}/t/${app.id}`;
+    navigator.clipboard.writeText(triageUrl);
+    toast.success(`Link de pré-triagem de ${app.paciente_nome} copiado!`, {
+      description: triageUrl,
+      action: {
+        label: "Abrir Triagem",
+        onClick: () => window.open(triageUrl, "_blank"),
+      },
+    });
+  };
+
   // Iniciar Atendimento Clínico a partir da agenda
   const handleStartTriage = (app: Agendamento) => {
     toast.info(`Iniciando atendimento para ${app.paciente_nome}...`);
@@ -392,7 +500,7 @@ function Agenda() {
   }, [selectedDate]);
 
   return (
-    <div>
+    <div className="w-full max-w-[1600px] mx-auto space-y-5">
       <PageHeader
         title="Agenda"
         description={`${formattedSelectedDate} • ${dayAppointments.length} compromisso(s)`}
@@ -408,7 +516,7 @@ function Agenda() {
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
+      <div className="grid gap-5 xl:grid-cols-[1fr_320px] w-full">
         <div className="space-y-5">
           {/* Barra Semanal Dinâmica */}
           <Card className="flex items-center gap-2 p-3">
@@ -520,6 +628,8 @@ function Agenda() {
                           tone={
                             a.status === "Confirmado"
                               ? "green"
+                              : a.status === "Triagem Concluída"
+                              ? "purple"
                               : a.status === "Aguardando"
                               ? "amber"
                               : a.status === "Concluido"
@@ -552,19 +662,35 @@ function Agenda() {
                           <FileText className="size-4" />
                         </button>
                         <button
+                          onClick={() => handleCopyTriageLink(a)}
+                          className="rounded-lg p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                          title="Copiar link de pré-triagem do paciente (/t/$id)"
+                        >
+                          <Link2 className="size-4" />
+                        </button>
+                        <button
                           onClick={() => handleTeleconsulta(a)}
                           className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
                           title="Copiar sala de teleconsulta"
                         >
                           <Video className="size-4" />
                         </button>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleStartTriage(a)}
-                          className="flex items-center gap-1 text-xs"
-                        >
-                          <Play className="size-3" /> Iniciar
-                        </Button>
+                        {a.status === "Concluido" ? (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-md bg-secondary/80 px-2.5 py-1 text-xs font-medium text-muted-foreground select-none"
+                            title="Atendimento já concluído"
+                          >
+                            <CheckCircle2 className="size-3 text-muted-foreground" /> Atendido
+                          </span>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            onClick={() => setConfirmStartAppointment(a)}
+                            className="flex items-center gap-1 text-xs"
+                          >
+                            <Play className="size-3" /> Iniciar
+                          </Button>
+                        )}
                         <button
                           onClick={() => handleDeleteAppointment(a.id, a.paciente_nome)}
                           className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
@@ -663,54 +789,123 @@ function Agenda() {
           </DialogHeader>
 
           <form onSubmit={handleSaveAppointment} className="space-y-4 py-2">
-            {/* Selecionar Paciente */}
-            <div>
-              <label className="text-xs font-semibold text-foreground">
-                Paciente <span className="text-destructive">*</span>
+            {/* Busca Inteligente (Combobox/Autocomplete) do Paciente */}
+            <div className="relative">
+              <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span>
+                  Paciente <span className="text-destructive">*</span>
+                </span>
+                {isCreatingNewPatient && (
+                  <span className="text-[10px] font-medium text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                    ✓ Novo paciente será cadastrado
+                  </span>
+                )}
+                {formData.paciente_id && (
+                  <span className="text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    ✓ Paciente da base
+                  </span>
+                )}
               </label>
-              {patients.length > 0 ? (
-                <div className="mt-1.5 space-y-2">
-                  <select
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    value={formData.paciente_id}
-                    onChange={(e) => {
-                      const selId = e.target.value;
-                      const pat = patients.find((p) => p.id === selId);
-                      setFormData((prev) => ({
-                        ...prev,
-                        paciente_id: selId,
-                        paciente_nome: pat ? pat.name : prev.paciente_nome,
-                      }));
-                    }}
-                  >
-                    <option value="">Selecione um paciente cadastrado...</option>
-                    {patients.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} {p.cpf ? `(CPF: ${p.cpf})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Ou digite o nome do paciente..."
-                    value={formData.paciente_nome}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, paciente_nome: e.target.value }))
-                    }
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                </div>
-              ) : (
+
+              <div className="relative mt-1.5">
+                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   required
-                  placeholder="Nome completo do paciente"
-                  value={formData.paciente_nome}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, paciente_nome: e.target.value }))
-                  }
-                  className="mt-1.5 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="Digite ao menos 2 letras do nome ou CPF..."
+                  value={patientSearchTerm}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPatientSearchTerm(val);
+                    setFormData((prev) => ({
+                      ...prev,
+                      paciente_nome: val,
+                      paciente_id: "",
+                    }));
+                    setIsCreatingNewPatient(false);
+                    setIsDropdownOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (patientSearchTerm.length >= 2) setIsDropdownOpen(true);
+                  }}
+                  className="flex h-9 w-full rounded-md border border-input bg-background pl-9 pr-8 text-sm shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
+                {searchingPatients && (
+                  <Loader2 className="absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                )}
+              </div>
+
+              {/* Dropdown de sugestões e opção de pré-cadastro rápido */}
+              {isDropdownOpen && patientSearchTerm.trim().length >= 2 && (
+                <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg animate-in fade-in zoom-in-95 duration-100">
+                  {/* Opção para cadastrar novo paciente */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        paciente_id: "",
+                        paciente_nome: patientSearchTerm.trim(),
+                      }));
+                      setIsCreatingNewPatient(true);
+                      setIsDropdownOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer border-b border-border/50"
+                  >
+                    <Plus className="size-3.5 shrink-0" />
+                    <span className="truncate">
+                      Cadastrar novo paciente <strong>"{patientSearchTerm.trim()}"</strong>
+                    </span>
+                  </button>
+
+                  {/* Lista de pacientes encontrados */}
+                  {searchResults.length > 0 ? (
+                    <div className="py-1">
+                      {searchResults.map((p) => {
+                        const isSelected = formData.paciente_id === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setFormData((prev) => ({
+                                ...prev,
+                                paciente_id: p.id,
+                                paciente_nome: p.name,
+                              }));
+                              setPatientSearchTerm(p.name);
+                              setIsCreatingNewPatient(false);
+                              setIsDropdownOpen(false);
+                            }}
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs transition-colors cursor-pointer",
+                              isSelected
+                                ? "bg-primary/10 font-semibold text-primary"
+                                : "hover:bg-secondary text-foreground",
+                            )}
+                          >
+                            <div>
+                              <p className="font-medium text-foreground">{p.name}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {p.cpf ? `CPF: ${p.cpf}` : "Sem CPF"}
+                                {p.phone ? ` • Tel: ${p.phone}` : ""}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <Check className="size-4 text-primary shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    !searchingPatients && (
+                      <p className="px-3 py-2 text-center text-xs text-muted-foreground">
+                        Nenhum paciente existente com esse nome. Toque acima para cadastrar.
+                      </p>
+                    )
+                  )}
+                </div>
               )}
             </div>
 
@@ -837,6 +1032,82 @@ function Agenda() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação para Iniciar Atendimento Clínico */}
+      <Dialog
+        open={!!confirmStartAppointment}
+        onOpenChange={(open) => !open && setConfirmStartAppointment(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Stethoscope className="size-4.5 text-primary" /> Iniciar Atendimento Clínico
+            </DialogTitle>
+            <DialogDescription>
+              Você está prestes a abrir a sala de consulta médica em tempo real.
+            </DialogDescription>
+          </DialogHeader>
+
+          {confirmStartAppointment && (
+            <div className="space-y-3 py-2">
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs">
+                <p className="text-sm font-semibold text-foreground">
+                  {confirmStartAppointment.paciente_nome}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2 text-muted-foreground">
+                  <span className="rounded bg-background border px-2 py-0.5 font-medium text-foreground">
+                    {confirmStartAppointment.tipo}
+                  </span>
+                  <span className="rounded bg-background border px-2 py-0.5 font-medium text-foreground">
+                    {confirmStartAppointment.area}
+                  </span>
+                  <span className="rounded bg-background border px-2 py-0.5 font-medium text-foreground">
+                    {new Date(confirmStartAppointment.data_hora).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+                {confirmStartAppointment.observacoes && (
+                  <p className="mt-2 text-muted-foreground italic border-t border-primary/10 pt-2">
+                    "{confirmStartAppointment.observacoes}"
+                  </p>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Deseja iniciar o atendimento de{" "}
+                <strong className="text-foreground">
+                  {confirmStartAppointment.paciente_nome}
+                </strong>
+                ?
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setConfirmStartAppointment(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (confirmStartAppointment) {
+                  const target = confirmStartAppointment;
+                  setConfirmStartAppointment(null);
+                  handleStartTriage(target);
+                }
+              }}
+              className="flex items-center gap-1.5"
+            >
+              <Play className="size-3.5" /> Iniciar Atendimento
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

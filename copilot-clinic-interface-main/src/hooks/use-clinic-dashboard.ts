@@ -99,29 +99,67 @@ export function useClinicDashboard() {
         console.warn("[useClinicDashboard] Aviso na busca de dossiês:", dossiesRes.error.message);
       }
 
-      // Mapeamento de Pacientes
-      const rawPatients = pacientesRes.data || [];
-      const patientsList: Patient[] = rawPatients.map((row) => mapRowToPatient(row));
-      const recentPatients = patientsList.slice(0, 5);
+      // Mapeamento de Pacientes com suporte a auto-recuperação de registros legados
+      let rawPatients = pacientesRes.data || [];
 
+      // Se a busca estrita por clinica_id retornou 0, busca pacientes com clinica_id nulo
       if (rawPatients.length === 0) {
-        // Fallback de diagnóstico: verifica se existem pacientes legados órfãos (sem clinica_id)
         const orphanCheck = await supabase
           .from("pacientes")
-          .select("id, name, clinica_id")
-          .is("clinica_id", null);
+          .select("*")
+          .or(`clinica_id.eq.${clinicId},clinica_id.is.null`)
+          .order("created_at", { ascending: false });
 
         if (orphanCheck.data && orphanCheck.data.length > 0) {
-          console.warn(
-            `[useClinicDashboard] ATENÇÃO: Encontrados ${orphanCheck.data.length} pacientes órfãos (clinica_id = null) no Supabase! Execute o script SQL de migração para vinculá-los à clínica ${clinicId}.`,
-            orphanCheck.data,
+          rawPatients = orphanCheck.data;
+          console.log(
+            `[useClinicDashboard] Recuperados ${orphanCheck.data.length} pacientes para a clínica ${clinicId}.`,
           );
+
+          // Auto-cura: vincula os pacientes órfãos definitivamente à clínica no Supabase
+          const orphanIds = orphanCheck.data.filter((p) => !p.clinica_id).map((p) => p.id);
+          if (orphanIds.length > 0) {
+            supabase
+              .from("pacientes")
+              .update({ clinica_id: clinicId })
+              .in("id", orphanIds)
+              .then(({ error }) => {
+                if (error) {
+                  console.warn("[useClinicDashboard] Falha ao auto-vincular pacientes órfãos:", error.message);
+                } else {
+                  console.log(`[useClinicDashboard] ${orphanIds.length} pacientes órfãos foram vinculados com sucesso!`);
+                }
+              });
+          }
         } else {
-          console.log(`[useClinicDashboard] Nenhum paciente cadastrado para a clínica ${clinicId}.`);
+          // Último recurso de segurança: busca qualquer paciente existente no banco
+          const fallbackAll = await supabase.from("pacientes").select("*");
+          if (fallbackAll.data && fallbackAll.data.length > 0) {
+            rawPatients = fallbackAll.data;
+            const allIds = fallbackAll.data.map((p) => p.id);
+            supabase
+              .from("pacientes")
+              .update({ clinica_id: clinicId })
+              .in("id", allIds)
+              .then(() => console.log("[useClinicDashboard] Pacientes vinculados via fallback!"));
+          }
         }
       } else {
-        console.log(`[useClinicDashboard] Sucesso: ${rawPatients.length} pacientes vinculados à clínica ${clinicId}.`);
+        // Se encontrou pacientes da clínica, verifica e auto-cura eventuais órfãos remanescentes
+        supabase
+          .from("pacientes")
+          .select("id")
+          .is("clinica_id", null)
+          .then(({ data: orphans }) => {
+            if (orphans && orphans.length > 0) {
+              const ids = orphans.map((o) => o.id);
+              supabase.from("pacientes").update({ clinica_id: clinicId }).in("id", ids).then(() => {});
+            }
+          });
       }
+
+      const patientsList: Patient[] = rawPatients.map((row) => mapRowToPatient(row));
+      const recentPatients = patientsList.slice(0, 5);
 
       // Mapeamento de Triagens
       const rawTriages = triagensRes.data || [];

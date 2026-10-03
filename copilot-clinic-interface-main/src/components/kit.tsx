@@ -51,6 +51,7 @@ const toneMap = {
   green: "bg-success/12 text-success",
   amber: "bg-warning/15 text-warning",
   red: "bg-destructive/10 text-destructive",
+  purple: "bg-purple-500/15 text-purple-700 dark:text-purple-300",
 } as const;
 
 export function Badge({
@@ -82,6 +83,7 @@ export function Button({
   onClick,
   type = "button",
   disabled,
+  title,
 }: {
   children: ReactNode;
   variant?: "primary" | "ghost" | "outline" | undefined;
@@ -89,6 +91,7 @@ export function Button({
   onClick?: (() => void) | (() => Promise<void>) | undefined;
   type?: "button" | "submit" | undefined;
   disabled?: boolean | undefined;
+  title?: string | undefined;
 }) {
   const variants = {
     primary: "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -100,6 +103,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={cn(
         "inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-[13px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 disabled:pointer-events-none",
         variants[variant],

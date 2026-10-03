@@ -206,10 +206,11 @@ function AuthRouteGuard() {
   const { session, loading } = useAuth();
 
   const isLoginPage = pathname === "/login";
+  const isPublicRoute = pathname.startsWith("/t/");
 
   useEffect(() => {
     if (!loading) {
-      if (!session && !isLoginPage) {
+      if (!session && !isLoginPage && !isPublicRoute) {
         // Redirecionamento obrigatório para /login
         navigate({ to: "/login" as string });
       } else if (session && isLoginPage) {
@@ -217,10 +218,10 @@ function AuthRouteGuard() {
         navigate({ to: "/" as string });
       }
     }
-  }, [session, loading, isLoginPage, navigate]);
+  }, [session, loading, isLoginPage, isPublicRoute, navigate]);
 
   // 1. Enquanto valida a sessão do Supabase: tela de loading suave
-  if (loading) {
+  if (loading && !isPublicRoute) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background gap-3">
         <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm">
@@ -234,8 +235,8 @@ function AuthRouteGuard() {
     );
   }
 
-  // 2. Rota pública de login/cadastro: renderiza diretamente sem AppShell
-  if (isLoginPage) {
+  // 2. Rota pública de login ou pré-triagem do paciente: renderiza diretamente sem AppShell
+  if (isLoginPage || isPublicRoute) {
     return <Outlet />;
   }
 

@@ -57,6 +57,21 @@ interface ConsultationState {
   conduct: string;
 }
 
+interface PatientHealthDetails {
+  allergies: string[];
+  medications: string[];
+  conditions: string[];
+  phone: string;
+}
+
+interface PreTriageInfo {
+  reason: string;
+  priority: string;
+  channel: string;
+  started?: string | null;
+  created_at?: string | null;
+}
+
 function AtendimentoPage() {
   const { id } = useParams({ from: "/atendimento/$id" });
   const navigate = useNavigate();
@@ -86,6 +101,15 @@ function AtendimentoPage() {
     conduct: "",
   });
 
+  // Dados de pré-triagem do paciente
+  const [preTriageRecord, setPreTriageRecord] = useState<PreTriageInfo | null>(null);
+  const [patientDetails, setPatientDetails] = useState<PatientHealthDetails>({
+    allergies: [],
+    medications: [],
+    conditions: [],
+    phone: "",
+  });
+
   // Insights gerados pela IA (iniciam vazios e são gerados durante a consulta)
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [redFlags, setRedFlags] = useState<string[]>([]);
@@ -113,70 +137,109 @@ function AtendimentoPage() {
 
     setLoading(true);
     try {
+      let patientNameFound = "";
+      let patientIdFound: string | null = null;
+      let appointmentObs = "";
+      let triageFound: PreTriageInfo | null = null;
+
       // 1. Tenta buscar na tabela agendamentos
-      const { data: appData, error: appError } = await supabase
+      const { data: appData } = await supabase
         .from("agendamentos")
         .select("*")
         .eq("id", id)
         .maybeSingle();
 
       if (appData) {
-        setConsultation((prev) => ({
-          ...prev,
-          patientName: appData.paciente_nome,
-          patientId: appData.paciente_id,
-          chiefComplaint: appData.observacoes || "",
-        }));
+        patientNameFound = appData.paciente_nome;
+        patientIdFound = appData.paciente_id;
+        appointmentObs = appData.observacoes || "";
 
-        // Se houver paciente_id, busca os dados reais cadastrados do paciente
-        if (appData.paciente_id) {
-          const { data: patData } = await supabase
-            .from("pacientes")
-            .select("age, cpf, plan")
-            .eq("id", appData.paciente_id)
-            .maybeSingle();
+        // Busca triagem vinculada a este paciente na clínica
+        const { data: triData } = await supabase
+          .from("triagens")
+          .select("reason, priority, channel, started, created_at")
+          .eq("clinica_id", currentClinic.id)
+          .or(
+            patientIdFound
+              ? `patient_id.eq."${patientIdFound}",patient.eq."${patientNameFound}"`
+              : `patient.eq."${patientNameFound}"`,
+          )
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-          if (patData) {
-            setConsultation((prev) => ({
-              ...prev,
-              age: patData.age || 0,
-              cpf: patData.cpf || "—",
-              plan: patData.plan || "Particular",
-            }));
-          }
+        if (triData) {
+          triageFound = triData as PreTriageInfo;
         }
       } else {
-        // 2. Se não encontrou em agendamentos, busca na tabela triagens
-        const { data: triageData } = await supabase
+        // 2. Se não encontrou em agendamentos, busca diretamente na tabela triagens
+        const { data: directTriData } = await supabase
           .from("triagens")
           .select("*")
           .eq("id", id)
           .maybeSingle();
 
-        if (triageData) {
+        if (directTriData) {
+          triageFound = directTriData as PreTriageInfo;
+          patientNameFound = directTriData.patient;
+          patientIdFound = directTriData.patient_id;
+        }
+      }
+
+      // Se achou dados de triagem do paciente
+      if (triageFound) {
+        setPreTriageRecord(triageFound);
+
+        // Extrai queixa principal limpa
+        let complaint = "";
+        const queixaMatch = triageFound.reason.match(/QUEIXA PRINCIPAL:\s*([^\n]+)/i);
+        if (queixaMatch && queixaMatch[1]) {
+          complaint = queixaMatch[1].trim();
+        } else if (appointmentObs) {
+          complaint = appointmentObs.replace(/^\[Pré-Triagem Paciente\]\s*/i, "").trim();
+        } else {
+          complaint = triageFound.reason.split("\n")[0] || "";
+        }
+
+        setConsultation((prev) => ({
+          ...prev,
+          patientName: patientNameFound || prev.patientName,
+          patientId: patientIdFound,
+          chiefComplaint: complaint,
+          history: triageFound.reason, // Exibe o dossiê da triagem completo na HDA
+        }));
+      } else if (appData) {
+        setConsultation((prev) => ({
+          ...prev,
+          patientName: appData.paciente_nome,
+          patientId: appData.paciente_id,
+          chiefComplaint: appData.observacoes || "",
+          history: appData.observacoes || "",
+        }));
+      }
+
+      // Se houver paciente_id, busca os dados reais cadastrados do paciente
+      if (patientIdFound) {
+        const { data: patData } = await supabase
+          .from("pacientes")
+          .select("age, cpf, plan, phone, allergies, medications, conditions")
+          .eq("id", patientIdFound)
+          .maybeSingle();
+
+        if (patData) {
           setConsultation((prev) => ({
             ...prev,
-            patientName: triageData.patient,
-            patientId: triageData.patient_id,
-            chiefComplaint: triageData.reason || "",
+            age: patData.age || prev.age,
+            cpf: patData.cpf || prev.cpf,
+            plan: patData.plan || prev.plan,
           }));
 
-          if (triageData.patient_id) {
-            const { data: patData } = await supabase
-              .from("pacientes")
-              .select("age, cpf, plan")
-              .eq("id", triageData.patient_id)
-              .maybeSingle();
-
-            if (patData) {
-              setConsultation((prev) => ({
-                ...prev,
-                age: patData.age || 0,
-                cpf: patData.cpf || "—",
-                plan: patData.plan || "Particular",
-              }));
-            }
-          }
+          setPatientDetails({
+            allergies: patData.allergies || [],
+            medications: patData.medications || [],
+            conditions: patData.conditions || [],
+            phone: patData.phone || "",
+          });
         }
       }
     } catch (err: unknown) {
@@ -315,7 +378,7 @@ function AtendimentoPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="w-full space-y-5">
       {/* Barra Superior de Navegação e Status */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div className="flex items-center gap-3">
@@ -394,6 +457,73 @@ function AtendimentoPage() {
       <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
         {/* Coluna 1: Anamnese e Prontuário Clínico */}
         <div className="space-y-5">
+          {/* Card de Destaque da Pré-Triagem Digital do Paciente */}
+          {preTriageRecord && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Sparkles className="size-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">
+                      Pré-Triagem do Paciente Carregada
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Dados preenchidos no telemóvel antes da consulta
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Badge tone="purple" className="text-[10px]">
+                    {preTriageRecord.channel || "Web Paciente"}
+                  </Badge>
+                  {preTriageRecord.priority && (
+                    <Badge
+                      tone={
+                        preTriageRecord.priority === "Alta"
+                          ? "red"
+                          : preTriageRecord.priority === "Media"
+                          ? "amber"
+                          : "green"
+                      }
+                      className="text-[10px]"
+                    >
+                      Prioridade: {preTriageRecord.priority}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Badges de Segurança e Antecedentes */}
+              <div className="flex flex-wrap gap-2 pt-0.5 text-xs">
+                {patientDetails.allergies.length > 0 ? (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-destructive/15 text-destructive font-medium px-2 py-0.5">
+                    <AlertTriangle className="size-3" />
+                    Alergias: {patientDetails.allergies.join(", ")}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-secondary text-muted-foreground px-2 py-0.5">
+                    Nenhuma alergia relatada
+                  </span>
+                )}
+
+                {patientDetails.medications.length > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-primary-soft text-accent-foreground font-medium px-2 py-0.5">
+                    Medicamentos: {patientDetails.medications.join(", ")}
+                  </span>
+                )}
+
+                {patientDetails.conditions.length > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-secondary text-foreground font-medium px-2 py-0.5">
+                    Condições: {patientDetails.conditions.join(", ")}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Card de Queixa Principal e História Clínica */}
           <Card className="p-6 space-y-5">
             <div>
@@ -417,17 +547,17 @@ function AtendimentoPage() {
                   História da Doença Atual (HDA) / Evolução Clínica
                 </label>
                 <span className="text-[11px] text-muted-foreground">
-                  Alimentado via digitação ou IA
+                  Alimentado via pré-triagem, digitação ou IA
                 </span>
               </div>
               <textarea
-                rows={5}
+                rows={6}
                 value={consultation.history}
                 onChange={(e) =>
                   setConsultation((prev) => ({ ...prev, history: e.target.value }))
                 }
                 placeholder="Descreva a cronologia dos sintomas, evolução clínica, fatores de melhora/piora e medicamentos em uso..."
-                className="flex w-full rounded-lg border border-input bg-surface p-3 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                className="flex w-full rounded-lg border border-input bg-surface p-3 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-y"
               />
             </div>
           </Card>

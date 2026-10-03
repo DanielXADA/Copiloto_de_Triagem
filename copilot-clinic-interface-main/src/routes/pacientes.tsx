@@ -40,6 +40,7 @@ import {
 } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useTenant } from "@/contexts/tenant-context";
 
 export const Route = createFileRoute("/pacientes")({
   head: () => ({
@@ -100,6 +101,7 @@ const initialPatientForm: NewPatientInput = {
 };
 
 function Pacientes() {
+  const { currentClinic } = useTenant();
   const [patientsList, setPatientsList] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -123,7 +125,7 @@ function Pacientes() {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await fetchPatients();
+      const data = await fetchPatients(currentClinic?.id);
       setPatientsList(data);
       if (data.length > 0 && !selected && data[0]) {
         setSelected(data[0]);
@@ -301,6 +303,7 @@ function Pacientes() {
       } else {
         // Criar novo paciente no Supabase (INSERT)
         const payload: NewPatientInput = {
+          clinica_id: currentClinic?.id || null,
           name: form.name.trim(),
           cpf: formatCpf(form.cpf),
           age: Number(form.age) || 0,
@@ -353,10 +356,10 @@ function Pacientes() {
   };
 
   return (
-    <div>
+    <div className="w-full space-y-6">
       <PageHeader
         title="Pacientes"
-        description={`${patientsList.length} pacientes cadastrados na Clínica Vida Integrada`}
+        description={`${patientsList.length} paciente(s) cadastrado(s) na ${currentClinic?.nome ?? "clínica"}`}
         actions={
           <div className="flex items-center gap-2">
             <Button

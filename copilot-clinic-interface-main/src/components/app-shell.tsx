@@ -10,12 +10,15 @@ import {
   Search,
   Bell,
   ChevronDown,
-  Activity,
+  ChevronLeft,
+  ChevronRight,
   LogOut,
   Loader2,
   User,
+  Menu,
+  X,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { CopilotoLogo, CopilotoIcon } from "@/components/brand/copiloto-logo";
 import { useAuth } from "@/hooks/use-auth";
@@ -47,6 +50,32 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { currentClinic, cargoLabel, isAdmin } = usePermissions();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  // Controle de estado recolhido da sidebar (persistente no localStorage)
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("copiloto_sidebar_collapsed") === "true";
+    }
+    return false;
+  });
+
+  // Gaveta lateral para visualização mobile
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Fecha menu mobile ao mudar de rota
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  const toggleSidebar = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("copiloto_sidebar_collapsed", String(next));
+      }
+      return next;
+    });
+  };
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -67,68 +96,181 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen w-full bg-background">
-      {/* Sidebar de navegação */}
-      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-border bg-surface lg:flex">
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-border/60">
-          <CopilotoLogo
-            size="md"
-            clinicName={currentClinic?.nome ?? "Copiloto Med"}
-            badge={cargoLabel}
-          />
+      {/* Sidebar Desktop com suporte a Minimizar/Expandir */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 hidden flex-col border-r border-border bg-surface transition-all duration-300 z-30 lg:flex",
+          isCollapsed ? "w-[68px]" : "w-60",
+        )}
+      >
+        {/* Botão circular flutuante na borda direita da sidebar */}
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className="absolute -right-3 top-5 z-40 flex size-6 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground shadow-xs transition-all hover:bg-secondary hover:text-foreground hover:scale-110 focus:outline-none cursor-pointer"
+          title={isCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+          aria-label={isCollapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="size-3.5" />
+          ) : (
+            <ChevronLeft className="size-3.5" />
+          )}
+        </button>
+
+        {/* Cabeçalho da Sidebar */}
+        <div
+          className={cn(
+            "flex h-16 shrink-0 items-center border-b border-border/60 transition-all overflow-hidden",
+            isCollapsed ? "justify-center px-2" : "px-4",
+          )}
+        >
+          {isCollapsed ? (
+            <Link
+              to="/"
+              className="flex items-center justify-center rounded-lg p-1.5 transition-colors hover:bg-secondary/60 focus:outline-none"
+              title={currentClinic?.nome ?? "Copiloto Med"}
+            >
+              <CopilotoIcon size="sm" />
+            </Link>
+          ) : (
+            <Link
+              to="/"
+              className="flex items-center overflow-hidden focus:outline-none"
+            >
+              <CopilotoLogo
+                size="md"
+                clinicName={currentClinic?.nome ?? "Copiloto Med"}
+                badge={cargoLabel}
+              />
+            </Link>
+          )}
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-3">
+        {/* Links de Navegação */}
+        <nav className="flex flex-1 flex-col gap-1.5 px-2.5 py-3 overflow-y-auto">
           {nav.map((item) => {
             const active = pathname === item.to;
             return (
               <Link
                 key={item.to}
                 to={item.to}
+                title={item.label}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors",
+                  "flex items-center rounded-lg text-[13px] font-medium transition-colors cursor-pointer",
+                  isCollapsed
+                    ? "justify-center px-2.5 py-2.5"
+                    : "gap-3 px-3 py-2.5",
                   active
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-xs"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                 )}
               >
-                <item.icon className="size-4.5" strokeWidth={2} />
-                {item.label}
+                <item.icon className="size-4.5 shrink-0" strokeWidth={2} />
+                {!isCollapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        <div className="m-3 rounded-lg border border-border bg-primary-soft p-4">
-          <p className="text-[13px] font-semibold">
-            {currentClinic?.plano ? `Plano ${currentClinic.plano}` : "Plano Pro"}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground truncate">
-            {currentClinic?.nome ?? "Unidade Ativa"}
-          </p>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface">
-            <div className="h-full w-[82%] rounded-full bg-primary" />
+        {/* Card do Plano no Rodapé (oculto quando colapsada) */}
+        {!isCollapsed && (
+          <div className="p-2.5 border-t border-border/60 animate-in fade-in duration-150">
+            <div className="rounded-lg border border-border bg-primary-soft p-3.5">
+              <p className="text-[13px] font-semibold text-foreground truncate">
+                {currentClinic?.plano ? `Plano ${currentClinic.plano}` : "Plano Pro"}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground truncate">
+                {currentClinic?.nome ?? "Unidade Ativa"}
+              </p>
+              <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-surface">
+                <div className="h-full w-[82%] rounded-full bg-primary" />
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
-      <div className="flex min-h-screen w-full flex-col lg:pl-60">
-        {/* Header principal com busca e perfil dinâmico */}
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-surface px-5">
-          <div className="lg:hidden shrink-0">
-            <CopilotoIcon size="sm" />
+      {/* Drawer Mobile */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 flex w-72 flex-col bg-surface p-5 shadow-2xl animate-in slide-in-from-left duration-200">
+            <div className="flex items-center justify-between border-b border-border pb-4">
+              <CopilotoLogo
+                size="sm"
+                clinicName={currentClinic?.nome ?? "Copiloto Med"}
+                badge={cargoLabel}
+              />
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <nav className="flex flex-1 flex-col gap-1.5 py-4">
+              {nav.map((item) => {
+                const active = pathname === item.to;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                    )}
+                  >
+                    <item.icon className="size-4.5" strokeWidth={2} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
-          <div className="relative w-full max-w-lg">
+        </div>
+      )}
+
+      {/* Conteúdo Principal com Largura 100% Total (Sem restrição max-w) */}
+      <div
+        className={cn(
+          "flex min-h-screen w-full flex-col transition-all duration-300",
+          isCollapsed ? "lg:pl-[68px]" : "lg:pl-60",
+        )}
+      >
+        {/* Header principal com busca e perfil dinâmico */}
+        <header className="sticky top-0 z-20 flex h-16 w-full items-center gap-3 border-b border-border bg-surface px-4 sm:px-6">
+          {/* Botão Mobile */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground lg:hidden cursor-pointer"
+            aria-label="Abrir menu"
+          >
+            <Menu className="size-5" />
+          </button>
+
+          {/* Busca Global */}
+          <div className="relative w-full max-w-md">
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
-              placeholder="Buscar paciente por nome, CPF ou número da consulta..."
-              className="h-10 w-full rounded-lg border border-input bg-background pr-16 pl-9 text-[13px] outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
+              placeholder="Buscar paciente por nome, CPF ou consulta..."
+              className="h-9.5 w-full rounded-lg border border-input bg-background pr-16 pl-9 text-[13px] outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
             />
-            <kbd className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <kbd className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] text-muted-foreground hidden sm:inline-block">
               Ctrl + K
             </kbd>
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2.5 sm:gap-3">
             <button
               type="button"
               className="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
@@ -240,7 +382,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 p-6">{children}</main>
+        {/* Layout com Limite Amigável para Telas Ultrawide (max-w-[1600px] mx-auto) */}
+        <main className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

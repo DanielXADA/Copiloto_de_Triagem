@@ -60,7 +60,17 @@ export function formatCep(value: string | null | undefined): string {
   return `${digits.slice(0, 5)}-${digits.slice(5, 8)}`;
 }
 
-export type MaskType = "cpf" | "cnpj" | "phone" | "cep";
+/**
+ * Máscara de Data de Nascimento: DD/MM/AAAA (máximo 8 dígitos)
+ */
+export function formatBirthDate(value: string | null | undefined): string {
+  const digits = normalizeDigits(value).slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+}
+
+export type MaskType = "cpf" | "cnpj" | "phone" | "cep" | "date";
 
 /**
  * Aplica máscara de acordo com o tipo especificado
@@ -75,6 +85,8 @@ export function applyMask(value: string, mask: MaskType): string {
       return formatPhone(value);
     case "cep":
       return formatCep(value);
+    case "date":
+      return formatBirthDate(value);
     default:
       return value;
   }

@@ -18,7 +18,7 @@ export type Database = {
           duracao_minutos: number;
           tipo: string;
           area: string;
-          status: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido";
+          status: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido" | "Triagem Concluída";
           observacoes: string | null;
           teleconsulta_url: string | null;
           created_at: string;
@@ -33,7 +33,7 @@ export type Database = {
           duracao_minutos?: number | undefined;
           tipo?: string | undefined;
           area?: string | undefined;
-          status?: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido" | undefined;
+          status?: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido" | "Triagem Concluída" | undefined;
           observacoes?: string | null | undefined;
           teleconsulta_url?: string | null | undefined;
           created_at?: string | undefined;
@@ -48,7 +48,7 @@ export type Database = {
           duracao_minutos?: number | undefined;
           tipo?: string | undefined;
           area?: string | undefined;
-          status?: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido" | undefined;
+          status?: "Confirmado" | "Aguardando" | "Cancelado" | "Concluido" | "Triagem Concluída" | undefined;
           observacoes?: string | null | undefined;
           teleconsulta_url?: string | null | undefined;
           created_at?: string | undefined;

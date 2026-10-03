@@ -5,6 +5,7 @@ export type TriageStatus = "concluida" | "andamento" | "nao_iniciada";
 
 export type Patient = {
   id: string;
+  clinica_id?: string | null | undefined;
   name: string;
   age: number;
   cpf: string;
@@ -153,6 +154,8 @@ export function mapRowToPatient(row: Tables<"pacientes"> | Record<string, unknow
 
   return {
     id: String(r.id ?? getProp(row, "id") ?? ""),
+    clinica_id:
+      (r.clinica_id as string | null) ?? (getProp(row, "clinica_id") as string | null) ?? null,
     name,
     age,
     cpf,
@@ -172,23 +175,35 @@ export function mapRowToPatient(row: Tables<"pacientes"> | Record<string, unknow
 
 export function mapRowToTriage(row: Tables<"triagens"> | Record<string, unknown>): Triage {
   const r = row as Tables<"triagens">;
-  const statusRaw = String(r.status ?? getProp(row, "status") ?? "nao_iniciada");
-  const validStatus: TriageStatus =
-    statusRaw === "concluida" || statusRaw === "andamento" || statusRaw === "nao_iniciada"
-      ? statusRaw
-      : "nao_iniciada";
+  const statusRaw = String(r.status ?? getProp(row, "status") ?? "nao_iniciada").toLowerCase();
+  
+  let validStatus: TriageStatus = "nao_iniciada";
+  if (
+    statusRaw.includes("conclui") ||
+    statusRaw.includes("conclu") ||
+    statusRaw === "triagem concluída" ||
+    statusRaw === "completed" ||
+    statusRaw === "done"
+  ) {
+    validStatus = "concluida";
+  } else if (
+    statusRaw.includes("andam") ||
+    statusRaw.includes("aguard") ||
+    statusRaw === "in_progress"
+  ) {
+    validStatus = "andamento";
+  }
 
-  const priorityRaw = String(r.priority ?? getProp(row, "priority") ?? "Média");
-  const validPriority: Triage["priority"] =
-    priorityRaw === "Alta" || priorityRaw === "Média" || priorityRaw === "Baixa"
-      ? priorityRaw
-      : "Média";
+  const priorityRaw = String(r.priority ?? getProp(row, "priority") ?? "Média").toLowerCase();
+  let validPriority: Triage["priority"] = "Média";
+  if (priorityRaw.includes("alt") || priorityRaw.includes("high")) {
+    validPriority = "Alta";
+  } else if (priorityRaw.includes("baix") || priorityRaw.includes("low")) {
+    validPriority = "Baixa";
+  }
 
-  const channelRaw = String(r.channel ?? getProp(row, "channel") ?? "Web");
-  const validChannel: Triage["channel"] =
-    channelRaw === "WhatsApp" || channelRaw === "Web" || channelRaw === "Totem"
-      ? channelRaw
-      : "Web";
+  const channelRaw = String(r.channel ?? getProp(row, "channel") ?? "Web Paciente");
+  const progressVal = Number(r.progress ?? getProp(row, "progresso") ?? (validStatus === "concluida" ? 100 : 0));
 
   return {
     id: String(r.id ?? getProp(row, "id") ?? ""),
@@ -197,10 +212,10 @@ export function mapRowToTriage(row: Tables<"triagens"> | Record<string, unknown>
       (r.patient_id as string | null) ?? (getProp(row, "patient_id") as string | null) ?? null,
     reason: String(r.reason ?? getProp(row, "motivo") ?? ""),
     status: validStatus,
-    progress: Number(r.progress ?? getProp(row, "progresso") ?? 0),
+    progress: progressVal > 0 ? progressVal : validStatus === "concluida" ? 100 : 0,
     priority: validPriority,
     started: String(r.started ?? getProp(row, "iniciado") ?? "—"),
-    channel: validChannel,
+    channel: channelRaw as Triage["channel"],
     created_at: (r.created_at as string | null) ?? undefined,
   };
 }
@@ -265,11 +280,17 @@ export function mapRowToDossier(row: Tables<"dossies"> | Record<string, unknown>
 // OPERAÇÕES NO SUPABASE: PACIENTES
 // ==========================================
 
-export async function fetchPatients(): Promise<Patient[]> {
-  const { data, error } = await supabase
+export async function fetchPatients(clinicId?: string): Promise<Patient[]> {
+  let query = supabase
     .from("pacientes")
     .select("*")
     .order("created_at", { ascending: false });
+
+  if (clinicId) {
+    query = query.or(`clinica_id.eq.${clinicId},clinica_id.is.null`);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("[Supabase] Erro ao buscar pacientes:", error.message);
@@ -292,6 +313,7 @@ export async function fetchPatientById(id: string): Promise<Patient | null> {
 
 export async function createPatient(patient: NewPatientInput): Promise<Patient> {
   const payload: TablesInsert<"pacientes"> = {
+    clinica_id: patient.clinica_id || undefined,
     name: patient.name.trim(),
     age: Number(patient.age) || 0,
     cpf: formatCpf(patient.cpf),
@@ -362,11 +384,12 @@ export async function deletePatient(id: string): Promise<void> {
 // OPERAÇÕES NO SUPABASE: TRIAGENS
 // ==========================================
 
-export async function fetchTriages(): Promise<Triage[]> {
-  const { data, error } = await supabase
-    .from("triagens")
-    .select("*")
-    .order("created_at", { ascending: false });
+export async function fetchTriages(clinicId?: string): Promise<Triage[]> {
+  let query = supabase.from("triagens").select("*");
+  if (clinicId) {
+    query = query.or(`clinica_id.eq.${clinicId},clinica_id.is.null`);
+  }
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     console.error("[Supabase] Erro ao buscar triagens:", error.message);
