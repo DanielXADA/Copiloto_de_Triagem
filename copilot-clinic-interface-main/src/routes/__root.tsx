@@ -207,7 +207,7 @@ function AuthRouteGuard() {
   const { session, loading } = useAuth();
 
   const isLoginPage = pathname === "/login";
-  const isPublicRoute = pathname.startsWith("/t/");
+  const isPublicRoute = pathname.startsWith("/t/") || pathname === "/confirmacao-sucesso";
 
   useEffect(() => {
     if (!loading) {

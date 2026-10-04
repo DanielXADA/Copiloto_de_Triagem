@@ -41,8 +41,8 @@ function LoginPage() {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
 
-  // Modos de autenticação: 'magic-link' (padrão sem senha), 'password' (senha tradicional), 'register' (criar conta)
-  const [mode, setMode] = useState<"magic-link" | "password" | "register">("magic-link");
+  // Modos de autenticação: 'magic-link' (sem senha), 'password' (senha), 'register' (criar conta), 'forgot-password' (recuperação)
+  const [mode, setMode] = useState<"magic-link" | "password" | "register" | "forgot-password">("magic-link");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
@@ -56,6 +56,10 @@ function LoginPage() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Campos de Recuperação de Senha
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoverySent, setRecoverySent] = useState(false);
 
   // Campos de Cadastro
   const [registerName, setRegisterName] = useState("");
@@ -202,6 +206,59 @@ function LoginPage() {
   };
 
   /**
+   * Envia link de redefinição de senha para o e-mail informado
+   */
+  const handleResetPassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMessage(null);
+    setSuccessNotice(null);
+
+    const email = recoveryEmail.trim();
+
+    if (!email) {
+      setErrorMessage("Por favor, informe seu endereço de e-mail.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const redirectTo =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/login`
+          : undefined;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+
+      if (error) {
+        if (
+          error.message.toLowerCase().includes("rate limit") ||
+          error.message.toLowerCase().includes("over_email_send_rate_limit") ||
+          error.message.toLowerCase().includes("seconds")
+        ) {
+          throw new Error(
+            "Limite de envios atingido temporariamente. Por segurança, aguarde alguns instantes antes de solicitar novamente."
+          );
+        }
+        throw error;
+      }
+
+      setRecoverySent(true);
+      toast.success("Link de recuperação enviado!", {
+        description: "Confira as instruções enviadas para sua caixa de entrada e spam.",
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[Recuperação de Senha] Erro:", msg);
+      setErrorMessage(msg);
+      toast.error("Falha ao enviar recuperação", { description: msg });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /**
    * Cadastro com Senha
    */
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -285,10 +342,16 @@ function LoginPage() {
         return;
       }
 
+      const confirmationRedirectUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/confirmacao-sucesso`
+          : undefined;
+
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
+          emailRedirectTo: confirmationRedirectUrl,
           data: {
             full_name: name,
             name,
@@ -409,59 +472,80 @@ function LoginPage() {
           <CopilotoLogo size="md" className="mb-8 lg:hidden" />
 
           {/* Seletor de Modo: Link Mágico (Padrão) / Senha / Cadastro */}
-          <div className="mb-6 flex rounded-xl bg-secondary p-1 border border-border">
-            <button
-              type="button"
-              onClick={() => {
-                setMode("magic-link");
-                setErrorMessage(null);
-                setSuccessNotice(null);
-              }}
-              className={cn(
-                "flex-1 rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
-                mode === "magic-link"
-                  ? "bg-surface text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Sparkles className="size-3.5 text-primary" />
-              <span>Link Mágico</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("password");
-                setErrorMessage(null);
-                setSuccessNotice(null);
-              }}
-              className={cn(
-                "flex-1 rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
-                mode === "password"
-                  ? "bg-surface text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Lock className="size-3.5" />
-              <span>Senha</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("register");
-                setErrorMessage(null);
-                setSuccessNotice(null);
-              }}
-              className={cn(
-                "flex-1 rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
-                mode === "register"
-                  ? "bg-surface text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <User className="size-3.5" />
-              <span>Criar Conta</span>
-            </button>
-          </div>
+          {mode === "forgot-password" ? (
+            <div className="mb-6 flex items-center justify-between rounded-xl bg-secondary/60 p-2.5 border border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("password");
+                  setErrorMessage(null);
+                  setSuccessNotice(null);
+                  setRecoverySent(false);
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer"
+              >
+                <ArrowLeft className="size-4" />
+                <span>Voltar para o Login</span>
+              </button>
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider pr-1">
+                Recuperação de Senha
+              </span>
+            </div>
+          ) : (
+            <div className="mb-6 flex rounded-xl bg-secondary p-1 border border-border">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("magic-link");
+                  setErrorMessage(null);
+                  setSuccessNotice(null);
+                }}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                  mode === "magic-link"
+                    ? "bg-surface text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Sparkles className="size-3.5 text-primary" />
+                <span>Link Mágico</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("password");
+                  setErrorMessage(null);
+                  setSuccessNotice(null);
+                }}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                  mode === "password"
+                    ? "bg-surface text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Lock className="size-3.5" />
+                <span>Senha</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("register");
+                  setErrorMessage(null);
+                  setSuccessNotice(null);
+                }}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5",
+                  mode === "register"
+                    ? "bg-surface text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <User className="size-3.5" />
+                <span>Criar Conta</span>
+              </button>
+            </div>
+          )}
 
           {/* Cabeçalho do Formulário */}
           <div className="mb-6">
@@ -469,6 +553,7 @@ function LoginPage() {
               {mode === "magic-link" && (magicLinkSent ? "Confira seu E-mail" : "Acesso Direto por E-mail")}
               {mode === "password" && "Acesse seu painel clínico"}
               {mode === "register" && "Crie seu perfil profissional"}
+              {mode === "forgot-password" && (recoverySent ? "Verifique seu e-mail" : "Recuperar senha")}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               {mode === "magic-link" &&
@@ -477,6 +562,10 @@ function LoginPage() {
                   : "Enviaremos um link de acesso direto para seu e-mail. Rápido, seguro e sem senhas.")}
               {mode === "password" && "Entre com seu e-mail e senha configurados no Supabase."}
               {mode === "register" && "Cadastre seus dados para iniciar atendimentos na plataforma."}
+              {mode === "forgot-password" &&
+                (recoverySent
+                  ? `Enviamos as instruções de recuperação para ${recoveryEmail}.`
+                  : "Informe seu e-mail cadastrado para receber um link de redefinição de senha.")}
             </p>
           </div>
 
@@ -736,9 +825,19 @@ function LoginPage() {
                   <label className="text-xs font-medium text-foreground block">
                     Senha
                   </label>
-                  <span className="text-[11px] text-muted-foreground cursor-default">
-                    Mínimo 6 caracteres
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRecoveryEmail(loginEmail);
+                      setMode("forgot-password");
+                      setErrorMessage(null);
+                      setSuccessNotice(null);
+                      setRecoverySent(false);
+                    }}
+                    className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+                  >
+                    Esqueceu a senha?
+                  </button>
                 </div>
                 <div className="relative">
                   <Lock className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -780,16 +879,31 @@ function LoginPage() {
                 )}
               </button>
 
-              <div className="text-center pt-2">
+              <div className="flex flex-col gap-2 pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecoveryEmail(loginEmail);
+                    setMode("forgot-password");
+                    setErrorMessage(null);
+                    setSuccessNotice(null);
+                    setRecoverySent(false);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Esqueceu a senha? <span className="text-primary font-medium underline">Recuperar por e-mail</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setMagicEmail(loginEmail);
                     setMode("magic-link");
+                    setErrorMessage(null);
+                    setSuccessNotice(null);
                   }}
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
-                  Esqueceu a senha? <span className="text-primary font-medium">Entrar via Link Mágico por E-mail</span>
+                  Prefere entrar sem senha? <span className="text-primary font-medium">Usar Link Mágico</span>
                 </button>
               </div>
             </form>
@@ -916,6 +1030,116 @@ function LoginPage() {
                 </button>
               </div>
             </form>
+          )}
+
+          {/* ======================================================== */}
+          {/* FLUXO 4: ESQUECI A SENHA / RECUPERAÇÃO DE CONTA            */}
+          {/* ======================================================== */}
+          {mode === "forgot-password" && (
+            <div className="space-y-4">
+              {recoverySent ? (
+                <div className="space-y-5 rounded-2xl border border-border bg-surface p-6 shadow-sm text-center animate-in fade-in zoom-in-95 duration-300">
+                  <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <MailCheck className="size-7" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h3 className="text-base font-semibold text-foreground">
+                      Instruções enviadas!
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Se existir uma conta vinculada ao e-mail{" "}
+                      <span className="font-semibold text-foreground">{recoveryEmail}</span>,
+                      enviamos um link seguro para redefinir sua senha.
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-secondary/50 p-3.5 text-left border border-border/60">
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      💡 <strong>Dica:</strong> Verifique também sua caixa de <em>Spam</em> ou <em>Lixo Eletrônico</em>. O link expira em poucas horas por segurança.
+                    </p>
+                  </div>
+                  <div className="space-y-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode("password");
+                        setRecoverySent(false);
+                        setErrorMessage(null);
+                        setSuccessNotice(null);
+                      }}
+                      className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/95 cursor-pointer"
+                    >
+                      <ArrowLeft className="size-3.5" />
+                      <span>Voltar para o Login</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleResetPassword()}
+                      disabled={submitting}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer block w-full py-1.5"
+                    >
+                      Não recebeu? <span className="text-primary font-medium">Reenviar link</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-foreground block mb-1.5">
+                      E-mail cadastrado
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="email"
+                        value={recoveryEmail}
+                        onChange={(e) => setRecoveryEmail(e.target.value)}
+                        placeholder="seu-email@vidaintegrada.com.br"
+                        required
+                        autoFocus
+                        autoComplete="email"
+                        className="h-10 w-full rounded-lg border border-input bg-surface pr-3 pl-9 text-[13px] outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/15"
+                      />
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      Enviaremos um link de confirmação para você redefinir sua senha com segurança.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/95 focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        <span>Disparando e-mail...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="size-3.5" />
+                        <span>Enviar link de recuperação</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode("password");
+                        setErrorMessage(null);
+                        setSuccessNotice(null);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      <ArrowLeft className="size-3.5" />
+                      <span>Lembrou da senha? Voltar ao Login</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           )}
 
           <div className="mt-8 rounded-lg bg-secondary/60 border border-border p-3 text-center">

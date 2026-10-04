@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as ConfirmacaoSucessoRouteImport } from './routes/confirmacao-sucesso'
 import { Route as DossiesRouteImport } from './routes/dossies'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PacientesRouteImport } from './routes/pacientes'
@@ -36,6 +37,11 @@ const AgendaRoute = AgendaRouteImport.update({
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmacaoSucessoRoute = ConfirmacaoSucessoRouteImport.update({
+  id: '/confirmacao-sucesso',
+  path: '/confirmacao-sucesso',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DossiesRoute = DossiesRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/confirmacao-sucesso': typeof ConfirmacaoSucessoRoute
   '/dossies': typeof DossiesRoute
   '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/confirmacao-sucesso': typeof ConfirmacaoSucessoRoute
   '/dossies': typeof DossiesRoute
   '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
   '/configuracoes': typeof ConfiguracoesRoute
+  '/confirmacao-sucesso': typeof ConfirmacaoSucessoRoute
   '/dossies': typeof DossiesRoute
   '/login': typeof LoginRoute
   '/pacientes': typeof PacientesRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/'
     | '/agenda'
     | '/configuracoes'
+    | '/confirmacao-sucesso'
     | '/dossies'
     | '/login'
     | '/pacientes'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/'
     | '/agenda'
     | '/configuracoes'
+    | '/confirmacao-sucesso'
     | '/dossies'
     | '/login'
     | '/pacientes'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/'
     | '/agenda'
     | '/configuracoes'
+    | '/confirmacao-sucesso'
     | '/dossies'
     | '/login'
     | '/pacientes'
@@ -187,6 +199,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgendaRoute: typeof AgendaRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ConfirmacaoSucessoRoute: typeof ConfirmacaoSucessoRoute
   DossiesRoute: typeof DossiesRoute
   LoginRoute: typeof LoginRoute
   PacientesRoute: typeof PacientesRoute
@@ -220,6 +233,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirmacao-sucesso': {
+      id: '/confirmacao-sucesso'
+      path: '/confirmacao-sucesso'
+      fullPath: '/confirmacao-sucesso'
+      preLoaderRoute: typeof ConfirmacaoSucessoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dossies': {
@@ -299,6 +319,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgendaRoute: AgendaRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
+  ConfirmacaoSucessoRoute: ConfirmacaoSucessoRoute,
   DossiesRoute: DossiesRoute,
   LoginRoute: LoginRoute,
   PacientesRoute: PacientesRoute,
