@@ -225,11 +225,12 @@ function LoginPage() {
       const redirectTo =
         typeof window !== "undefined"
           ? `${window.location.origin}/login`
-          : undefined;
+          : "";
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo,
-      });
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo ? { redirectTo } : undefined
+      );
 
       if (error) {
         if (
@@ -345,19 +346,31 @@ function LoginPage() {
       const confirmationRedirectUrl =
         typeof window !== "undefined"
           ? `${window.location.origin}/confirmacao-sucesso`
-          : undefined;
+          : "";
+
+      const signUpOptions: {
+        emailRedirectTo?: string;
+        data: {
+          full_name: string;
+          name: string;
+          specialty: string;
+        };
+      } = {
+        data: {
+          full_name: name,
+          name,
+          specialty: specialty || "Clínica Geral",
+        },
+      };
+
+      if (confirmationRedirectUrl) {
+        signUpOptions.emailRedirectTo = confirmationRedirectUrl;
+      }
 
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
-        options: {
-          emailRedirectTo: confirmationRedirectUrl,
-          data: {
-            full_name: name,
-            name,
-            specialty: specialty || "Clínica Geral",
-          },
-        },
+        options: signUpOptions,
       });
 
       if (error) {
