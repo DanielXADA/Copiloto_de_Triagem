@@ -234,8 +234,59 @@ function LoginPage() {
 
     setSubmitting(true);
     try {
+      const cleanEmail = email.toLowerCase().trim();
+
+      // =========================================================================
+      // ETAPA DE PRE-CHECK: Valida se o e-mail já existe antes de disparar o signUp
+      // =========================================================================
+      let emailJaExiste = false;
+
+      // 1. Consulta (select) na tabela 'perfis' usando o e-mail digitado
+      try {
+        const { data: perfilExistente, error: erroPerfil } = await supabase
+          .from("perfis")
+          .select("id")
+          .eq("email", cleanEmail)
+          .maybeSingle();
+
+        if (!erroPerfil && perfilExistente) {
+          emailJaExiste = true;
+        }
+      } catch (errCheck) {
+        // Fallback resiliente caso a tabela perfis ainda não possua a coluna email no banco legado
+      }
+
+      // 2. Consulta complementar na tabela 'perfis_usuarios'
+      if (!emailJaExiste) {
+        try {
+          const { data: usuarioExistente, error: erroUsuario } = await supabase
+            .from("perfis_usuarios")
+            .select("id")
+            .eq("email", cleanEmail)
+            .maybeSingle();
+
+          if (!erroUsuario && usuarioExistente) {
+            emailJaExiste = true;
+          }
+        } catch (errCheck2) {
+          // Ignora se tabela ou coluna não estiver acessível
+        }
+      }
+
+      // Se o e-mail já existir, aborta o fluxo e exibe o erro em vermelho
+      if (emailJaExiste) {
+        const erroDuplicado = "Este e-mail já possui cadastro. Por favor, acesse a aba de Login.";
+        setErrorMessage(erroDuplicado);
+        toast.error("Cadastro não permitido", {
+          description: erroDuplicado,
+          duration: 8000,
+        });
+        setSubmitting(false);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: cleanEmail,
         password,
         options: {
           data: {
@@ -247,10 +298,26 @@ function LoginPage() {
       });
 
       if (error) {
-        if (error.message.toLowerCase().includes("user already registered")) {
-          throw new Error("Já existe uma conta com este e-mail. Faça login ou solicite um Link Mágico.");
+        if (
+          error.message.toLowerCase().includes("user already registered") ||
+          error.message.toLowerCase().includes("already registered") ||
+          error.message.toLowerCase().includes("already exists")
+        ) {
+          throw new Error("Este e-mail já possui cadastro. Por favor, acesse a aba de Login.");
         }
         throw error;
+      }
+
+      // Supabase Anti-enumeração: quando o e-mail já existe, data.user pode vir com identities vazias ([])
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        const erroDuplicado = "Este e-mail já possui cadastro. Por favor, acesse a aba de Login.";
+        setErrorMessage(erroDuplicado);
+        toast.error("Cadastro não permitido", {
+          description: erroDuplicado,
+          duration: 8000,
+        });
+        setSubmitting(false);
+        return;
       }
 
       if (data.session) {
@@ -260,10 +327,12 @@ function LoginPage() {
         navigate({ to: "/" });
       } else {
         setSuccessNotice(
-          "Conta criada com sucesso! Enviamos uma confirmação para seu e-mail.",
+          "Solicitação recebida! Se este e-mail for novo, enviamos um link de confirmação para ele. Caso o e-mail já possua cadastro, acesse usando a aba de Login.",
         );
-        toast.success("Cadastro realizado!", {
-          description: "Verifique seu e-mail para validar seu acesso.",
+        toast.success("Solicitação recebida!", {
+          description:
+            "Se este e-mail for novo, enviamos um link de confirmação para ele. Caso o e-mail já possua cadastro, acesse usando a aba de Login.",
+          duration: 9000,
         });
       }
     } catch (err: unknown) {
@@ -418,9 +487,25 @@ function LoginPage() {
               className="mb-5 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs text-destructive animate-in fade-in slide-in-from-top-2"
             >
               <AlertCircle className="size-4 shrink-0 mt-0.5" />
-              <div className="leading-relaxed">
+              <div className="leading-relaxed flex-1">
                 <strong className="font-semibold block mb-0.5">Erro na autenticação</strong>
                 <span>{errorMessage}</span>
+                {mode === "register" && errorMessage.includes("aba de Login") && (
+                  <div className="mt-2.5 pt-2 border-t border-destructive/20">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginEmail(registerEmail);
+                        setMode("password");
+                        setErrorMessage(null);
+                      }}
+                      className="text-xs font-semibold text-destructive-foreground bg-destructive/90 hover:bg-destructive rounded-md px-2.5 py-1 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Lock className="size-3" />
+                      <span>Ir para aba de Login com Senha →</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -432,9 +517,25 @@ function LoginPage() {
               className="mb-5 flex items-start gap-3 rounded-xl border border-success/30 bg-success/10 p-3.5 text-xs text-success animate-in fade-in slide-in-from-top-2"
             >
               <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
-              <div className="leading-relaxed">
+              <div className="leading-relaxed flex-1">
                 <strong className="font-semibold block mb-0.5">Notificação</strong>
                 <span>{successNotice}</span>
+                {mode === "register" && (
+                  <div className="mt-2.5 pt-2 border-t border-success/20">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginEmail(registerEmail);
+                        setMode("password");
+                        setSuccessNotice(null);
+                      }}
+                      className="text-xs font-semibold text-foreground bg-surface/80 hover:bg-surface border border-success/40 rounded-md px-2.5 py-1 transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Lock className="size-3 text-primary" />
+                      <span>Acessar aba de Login agora →</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

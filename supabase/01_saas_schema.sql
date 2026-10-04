@@ -176,10 +176,17 @@ BEGIN
 
     -- Aplicar restrição NOT NULL
     ALTER TABLE public.pacientes ALTER COLUMN clinica_id SET NOT NULL;
+
+    -- Trava de Unicidade de CPF por Clínica (Multi-Tenant)
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'uq_pacientes_clinica_cpf'
+    ) THEN
+        ALTER TABLE public.pacientes ADD CONSTRAINT uq_pacientes_clinica_cpf UNIQUE (clinica_id, cpf);
+    END IF;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_pacientes_clinica_id ON public.pacientes (clinica_id);
-CREATE INDEX IF NOT EXISTS idx_pacientes_clinica_cpf ON public.pacientes (clinica_id, cpf);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pacientes_clinica_cpf ON public.pacientes (clinica_id, cpf);
 CREATE INDEX IF NOT EXISTS idx_pacientes_clinica_status ON public.pacientes (clinica_id, status);
 
 -- 6.3 TABELA: triagens

@@ -311,12 +311,48 @@ export async function fetchPatientById(id: string): Promise<Patient | null> {
   return data ? mapRowToPatient(data) : null;
 }
 
+function isCpfUniqueConstraintError(error: any): boolean {
+  if (!error) return false;
+  const code = error.code;
+  const msg = (error.message || "").toLowerCase();
+  const details = (error.details || "").toLowerCase();
+
+  return (
+    code === "23505" ||
+    msg.includes("uq_pacientes_clinica_cpf") ||
+    details.includes("uq_pacientes_clinica_cpf") ||
+    msg.includes("idx_pacientes_unique_clinica_cpf") ||
+    details.includes("idx_pacientes_unique_clinica_cpf") ||
+    msg.includes("pacientes_clinica_id_cpf_key") ||
+    details.includes("pacientes_clinica_id_cpf_key") ||
+    (msg.includes("duplicate key") && (msg.includes("cpf") || details.includes("cpf"))) ||
+    (msg.includes("unique constraint") && (msg.includes("cpf") || details.includes("cpf")))
+  );
+}
+
 export async function createPatient(patient: NewPatientInput): Promise<Patient> {
+  const formattedCpf = formatCpf(patient.cpf);
+  const targetClinicId = patient.clinica_id || undefined;
+
+  // 1. Verificação preventiva no cliente para resposta instantânea
+  if (targetClinicId && formattedCpf) {
+    const { data: existing } = await supabase
+      .from("pacientes")
+      .select("id")
+      .eq("clinica_id", targetClinicId)
+      .eq("cpf", formattedCpf)
+      .maybeSingle();
+
+    if (existing) {
+      throw new Error("Este CPF já está cadastrado nesta clínica.");
+    }
+  }
+
   const payload: TablesInsert<"pacientes"> = {
-    clinica_id: patient.clinica_id || undefined,
+    clinica_id: targetClinicId,
     name: patient.name.trim(),
     age: Number(patient.age) || 0,
-    cpf: formatCpf(patient.cpf),
+    cpf: formattedCpf,
     phone: formatPhone(patient.phone) || null,
     email: patient.email?.trim() || null,
     plan: patient.plan?.trim() || "Particular",
@@ -332,6 +368,10 @@ export async function createPatient(patient: NewPatientInput): Promise<Patient> 
   const { data, error } = await supabase.from("pacientes").insert(payload).select().single();
 
   if (error) {
+    // 2. Captura da UNIQUE CONSTRAINT combinando clinica_id e cpf no PostgreSQL
+    if (isCpfUniqueConstraintError(error)) {
+      throw new Error("Este CPF já está cadastrado nesta clínica.");
+    }
     console.error("[Supabase] Erro ao criar paciente:", error.message);
     throw error;
   }
@@ -340,13 +380,38 @@ export async function createPatient(patient: NewPatientInput): Promise<Patient> 
 }
 
 export async function updatePatient(id: string, updates: Partial<Patient>): Promise<Patient> {
+  const formattedCpf = updates.cpf !== undefined ? formatCpf(updates.cpf) : undefined;
+
+  // 1. Verificação preventiva ao atualizar CPF
+  if (formattedCpf) {
+    const { data: currentPat } = await supabase
+      .from("pacientes")
+      .select("clinica_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (currentPat?.clinica_id) {
+      const { data: existingWithSameCpf } = await supabase
+        .from("pacientes")
+        .select("id")
+        .eq("clinica_id", currentPat.clinica_id)
+        .eq("cpf", formattedCpf)
+        .neq("id", id)
+        .maybeSingle();
+
+      if (existingWithSameCpf) {
+        throw new Error("Este CPF já está cadastrado nesta clínica.");
+      }
+    }
+  }
+
   const payload: TablesUpdate<"pacientes"> = {
     updated_at: new Date().toISOString(),
   };
 
   if (updates.name !== undefined) payload.name = updates.name.trim();
   if (updates.age !== undefined) payload.age = Number(updates.age);
-  if (updates.cpf !== undefined) payload.cpf = formatCpf(updates.cpf);
+  if (formattedCpf !== undefined) payload.cpf = formattedCpf;
   if (updates.phone !== undefined) payload.phone = formatPhone(updates.phone) || null;
   if (updates.email !== undefined) payload.email = updates.email?.trim() || null;
   if (updates.plan !== undefined) payload.plan = updates.plan?.trim() || null;
@@ -365,6 +430,10 @@ export async function updatePatient(id: string, updates: Partial<Patient>): Prom
     .single();
 
   if (error) {
+    // 2. Captura da UNIQUE CONSTRAINT combinando clinica_id e cpf no PostgreSQL
+    if (isCpfUniqueConstraintError(error)) {
+      throw new Error("Este CPF já está cadastrado nesta clínica.");
+    }
     console.error("[Supabase] Erro ao atualizar paciente:", error.message);
     throw error;
   }

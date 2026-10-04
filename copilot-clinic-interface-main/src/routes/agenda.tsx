@@ -337,7 +337,8 @@ function Agenda() {
 
       // Se for novo paciente (ou se não tem paciente_id vinculado)
       if (!finalPacienteId && (isCreatingNewPatient || patientName)) {
-        // Pré-cadastro rápido na tabela pacientes
+        // Pré-cadastro rápido na tabela pacientes (gera identificador provisório para respeitar a UNIQUE CONSTRAINT por clínica)
+        const provisionalCpf = `Pendente-${Math.floor(1000 + Math.random() * 9000)}`;
         const { data: newPat, error: newPatError } = await supabase
           .from("pacientes")
           .insert({
@@ -346,7 +347,7 @@ function Agenda() {
             status: "Novo",
             plan: "Particular",
             area: formData.area || "Clínica Geral",
-            cpf: "—",
+            cpf: provisionalCpf,
           })
           .select("id, name, cpf, phone")
           .single();

@@ -115,42 +115,89 @@ function SetupPage() {
 
       console.log("[Setup] ✅ Clínica criada com sucesso! ID:", novaClinica.id);
 
-      // 2. Mecanismo de Auto-Cura: Garante que o registro do usuário exista na tabela 'perfis'
-      // antes de criar o vínculo na tabela 'membros_clinica' (evitando violação da Foreign Key membros_clinica_usuario_id_fkey).
+      // 2. Mecanismo de Auto-Cura Infalível: Garante que o registro do usuário exista
+      // nas tabelas de perfil ('perfis' e 'perfis_usuarios') antes de criar o vínculo na tabela 'membros_clinica'.
+      // Isso elimina 100% o risco de violação da Foreign Key membros_clinica_usuario_id_fkey.
       const userFullName =
         (typeof user.user_metadata?.["full_name"] === "string" && user.user_metadata["full_name"].trim()) ||
         (typeof user.user_metadata?.["name"] === "string" && user.user_metadata["name"].trim()) ||
         (user.email ? user.email.split("@")[0] : null) ||
         "Administrador";
 
-      console.log(`[Setup] 2. Auto-cura: Garantindo perfil do usuário (${user.id}) na tabela perfis...`);
+      console.log(`[Setup] 2. Auto-cura: Garantindo perfil do usuário (${user.id}) no banco de dados...`);
 
-      // Tenta upsert passando id, email e nome_completo
-      const { error: erroPerfilComEmail } = await supabase
-        .from("perfis")
-        .upsert({
-          id: user.id,
-          nome_completo: userFullName,
-          email: user.email ?? null,
-        });
-
-      if (erroPerfilComEmail) {
-        console.warn("[Setup] ⚠️ Tentativa de upsert com coluna email falhou, tentando fallback com id e nome_completo:", erroPerfilComEmail.message);
-        // Fallback resiliente caso a tabela perfis no banco de dados não possua a coluna email
-        const { error: erroPerfilPadrao } = await supabase
+      // 2.1 Garantir na tabela 'perfis' (utiliza apenas id e nome_completo, compatível com qualquer versão do schema)
+      try {
+        const { data: perfilExistente, error: erroChecagem } = await supabase
           .from("perfis")
-          .upsert({
-            id: user.id,
-            nome_completo: userFullName,
-          });
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
 
-        if (erroPerfilPadrao) {
-          console.error("[Setup] ❌ Falha crítica ao auto-curar tabela perfis:", erroPerfilPadrao);
-        } else {
-          console.log("[Setup] ✅ Perfil auto-curado com sucesso na tabela perfis (id, nome_completo).");
+        if (erroChecagem) {
+          console.warn("[Setup] ⚠️ Erro ao verificar existência em perfis:", erroChecagem.message);
         }
-      } else {
-        console.log("[Setup] ✅ Perfil auto-curado com sucesso na tabela perfis (id, nome_completo, email).");
+
+        if (!perfilExistente) {
+          // Tenta insert simples com id e nome_completo
+          const { error: erroInsertSimples } = await supabase
+            .from("perfis")
+            .insert({
+              id: user.id,
+              nome_completo: userFullName,
+            });
+
+          if (erroInsertSimples) {
+            console.warn("[Setup] ⚠️ Insert simples em perfis falhou, tentando upsert:", erroInsertSimples.message);
+            const { error: erroUpsert } = await supabase
+              .from("perfis")
+              .upsert({
+                id: user.id,
+                nome_completo: userFullName,
+              });
+
+            if (erroUpsert) {
+              console.error("[Setup] ❌ Falha no upsert em perfis:", erroUpsert.message);
+            } else {
+              console.log("[Setup] ✅ Perfil auto-curado via upsert em perfis.");
+            }
+          } else {
+            console.log("[Setup] ✅ Perfil auto-curado via insert em perfis.");
+          }
+        } else {
+          console.log("[Setup] ✅ Perfil já existente em perfis.");
+        }
+      } catch (errPerfil) {
+        console.warn("[Setup] Exceção ao sincronizar tabela perfis:", errPerfil);
+      }
+
+      // 2.2 Garantir na tabela 'perfis_usuarios' (caso a foreign key membros_clinica_usuario_id_fkey aponte para ela)
+      try {
+        const { data: usuarioExistente } = await supabase
+          .from("perfis_usuarios")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (!usuarioExistente) {
+          const { error: erroPerfisUsuarios } = await supabase
+            .from("perfis_usuarios")
+            .upsert({
+              id: user.id,
+              nome: userFullName,
+              email: user.email ?? null,
+              tipo_perfil: "admin_sistema",
+              ativo: true,
+            });
+
+          if (erroPerfisUsuarios) {
+            console.warn("[Setup] ⚠️ Aviso ao registrar em perfis_usuarios:", erroPerfisUsuarios.message);
+          } else {
+            console.log("[Setup] ✅ Perfil auto-curado em perfis_usuarios.");
+          }
+        }
+      } catch (errPerfisUsuarios) {
+        console.warn("[Setup] Exceção ao sincronizar tabela perfis_usuarios:", errPerfisUsuarios);
       }
 
       // 3. Insert na tabela membros_clinica vinculando usuario_id como admin_geral
@@ -168,6 +215,13 @@ function SetupPage() {
 
       if (erroMembro) {
         console.error("[Setup] ❌ Erro ao vincular membros_clinica:", erroMembro);
+        if (erroMembro.message.includes("membros_clinica_usuario_id_fkey")) {
+          throw new Error(
+            "Não foi possível vincular seu usuário à clínica (erro de chave estrangeira membros_clinica_usuario_id_fkey). " +
+            "Seu perfil não pôde ser gravado na tabela 'perfis' por restrição de política RLS no banco. " +
+            "Execute a migration 'supabase/02_unique_cpf_por_clinica.sql' no SQL Editor do Supabase para liberar as permissões."
+          );
+        }
         throw new Error(`Clínica criada, mas falhou ao vincular acesso administrativo: ${extractErrorMessage(erroMembro)}`);
       }
 

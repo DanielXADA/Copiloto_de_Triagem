@@ -340,6 +340,11 @@ function Pacientes() {
           description: "Execute o arquivo 'supabase/schema.sql' no SQL Editor do Supabase.",
           duration: 7000,
         });
+      } else if (errorMsg.includes("Este CPF já está cadastrado nesta clínica")) {
+        toast.error("Este CPF já está cadastrado nesta clínica.", {
+          description: "Não é permitido cadastrar o mesmo CPF duas vezes na mesma clínica.",
+          duration: 6000,
+        });
       } else {
         toast.error(
           editingPatientId
